@@ -49,14 +49,14 @@ export function Sidebar({ avatarUrl }: { avatarUrl: string | null }) {
           <Link
             key={link.name}
             href={link.href}
-            className={`flex items-center gap-3 rounded-r-md px-3 py-2 font-mono text-xs font-bold transition-colors ${
+            className={`flex items-center gap-2 rounded-r-md px-3 py-2 font-mono text-xs font-bold transition-colors ${
               link.active
                 ? "border-l-2 border-ship bg-ship/10 text-ship"
                 : "text-ink-muted hover:bg-surface-raised/50 hover:text-ink"
             }`}
           >
             <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>{link.icon}</span>
-            {link.name}
+            <span>{link.name}</span>
           </Link>
         ))}
       </nav>
