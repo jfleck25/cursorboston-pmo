@@ -29,9 +29,19 @@ export function Sidebar({ avatarUrl }: { avatarUrl: string | null }) {
   return (
     <aside className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-surface-border bg-surface-dim">
       <div className="flex h-24 items-center gap-3 border-b border-surface-border px-6">
-        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded bg-surface border border-surface-border">
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface border border-surface-border overflow-hidden">
           <div className="absolute -inset-2 rounded-full bg-ship/20 blur-md" />
-          <span className="material-symbols-outlined text-ship relative z-10" style={{ fontVariationSettings: "'FILL' 1" }}>eco</span>
+          {avatarUrl ? (
+            <Image
+              src={avatarUrl}
+              alt="Profile"
+              width={40}
+              height={40}
+              className="relative z-10 rounded-full object-cover"
+            />
+          ) : (
+            <span className="material-symbols-outlined text-ship relative z-10" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+          )}
         </div>
         <div className="flex flex-col">
           <h1 className="font-sans text-lg font-bold text-ship tracking-wide">Momentum</h1>
