@@ -79,7 +79,6 @@ export default async function HomePage() {
                 activeWeek={dashboard.activeWeek}
                 tasks={dashboard.tasks}
                 members={dashboard.members}
-                fuelPercent={dashboard.fuelPercent}
                 weekTaskCount={dashboard.weekTaskCount}
                 weekShippedCount={dashboard.weekShippedCount}
               />

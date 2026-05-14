@@ -243,14 +243,6 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
         llm.ideas.length >= 2
       ) {
         setLlmIdeas(llm.ideas);
-        setLlmMidReel({
-          title: truncateReelTitle(llm.ideas[0].title),
-          detail: llm.ideas[0].suggestedScope,
-        });
-        setLlmOutReel({
-          title: truncateReelTitle(llm.ideas[1].title),
-          detail: llm.ideas[1].oneLiner,
-        });
       }
 
       const hints: string[] = [];

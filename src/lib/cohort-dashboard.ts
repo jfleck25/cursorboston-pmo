@@ -12,6 +12,7 @@ export type DashboardTask = {
   assigneeUserId: string | null;
   shippedAt: string | null;
   githubHtmlUrl: string | null;
+  githubIssueNumber: number | null;
   assignee: {
     id: string;
     name: string | null;
@@ -37,8 +38,6 @@ export type CohortDashboard = {
   activeWeek: ActiveWeek | null;
   tasks: DashboardTask[];
   members: DashboardMember[];
-  /** Active-week tasks shipped ÷ active-week task count × 100 (0 if no week tasks). */
-  fuelPercent: number;
   weekTaskCount: number;
   weekShippedCount: number;
 };
@@ -54,6 +53,7 @@ function serializeTask(row: {
   assigneeUserId: string | null;
   shippedAt: Date | null;
   githubHtmlUrl: string | null;
+  githubIssueNumber: number | null;
   assignee: {
     id: string;
     name: string | null;
@@ -71,6 +71,7 @@ function serializeTask(row: {
     assigneeUserId: row.assigneeUserId,
     shippedAt: row.shippedAt?.toISOString() ?? null,
     githubHtmlUrl: row.githubHtmlUrl,
+    githubIssueNumber: row.githubIssueNumber,
     assignee: row.assignee,
   };
 }
@@ -119,6 +120,7 @@ export async function getCohortDashboard(userId: string): Promise<CohortDashboar
       assigneeUserId: true,
       shippedAt: true,
       githubHtmlUrl: true,
+      githubIssueNumber: true,
       assignee: { select: { id: true, name: true, image: true } },
     },
   });
@@ -135,15 +137,11 @@ export async function getCohortDashboard(userId: string): Promise<CohortDashboar
   const weekShipped = weekTasks.filter((t) => t.status === "shipped").length;
   const weekTotal = weekTasks.length;
 
-  const fuelPercent =
-    weekTotal === 0 ? 0 : Math.min(100, Math.round((100 * weekShipped) / weekTotal));
-
   return {
     cohortName: user.cohort.name,
     activeWeek,
     tasks,
     members,
-    fuelPercent,
     weekTaskCount: weekTotal,
     weekShippedCount: weekShipped,
   };
