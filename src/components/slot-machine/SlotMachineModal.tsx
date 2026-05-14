@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { prefetchSlotBundle } from "@/actions/prefetch-slot-bundle";
 import { prefetchGithubQuickWins } from "@/actions/github-quick-wins";
@@ -46,6 +47,7 @@ function ReelColumn({
   reduced,
   errorHint,
   onRetry,
+  phase,
 }: {
   label: string;
   reel: Reel | null;
@@ -54,6 +56,7 @@ function ReelColumn({
   reduced: boolean;
   errorHint?: string | null;
   onRetry?: () => void;
+  phase?: string;
 }) {
   const showContent = Boolean(reel) && !busy;
 
@@ -91,11 +94,20 @@ function ReelColumn({
             <motion.div
               key={`${reel!.title}-${reel!.detail}`}
               initial={reduced ? false : { y: 18, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
+              animate={
+                reduced 
+                  ? { y: 0, opacity: 1 } 
+                  : { 
+                      y: phase === "spinning" ? [-8, 8, -8, 8, 0] : 0, 
+                      opacity: phase === "spinning" ? 0.5 : 1 
+                    }
+              }
               exit={reduced ? undefined : { y: -12, opacity: 0 }}
               transition={
                 reduced
                   ? { duration: 0 }
+                  : phase === "spinning"
+                  ? { duration: 0.2, repeat: Infinity }
                   : { type: "spring", stiffness: 380, damping: 28, delay: index * 0.05 }
               }
             >
@@ -131,14 +143,12 @@ function truncateReelTitle(title: string, max = 72): string {
 }
 
 export function SlotMachineModal({ open, onClose }: SlotModalProps) {
+  const router = useRouter();
   const { decorativeMotionDisabled } = useMotionPreference();
   const [phase, setPhase] = useState<"empty" | "loading" | "ready" | "spinning">("empty");
   const [dealIndex, setDealIndex] = useState(0);
-  const [githubCandidate, setGithubCandidate] = useState<GithubIssueCandidate | null>(null);
-  const [llmIdeas, setLlmIdeas] = useState<SlotIdea[] | null>(null);
-  const [githubSourceReel, setGithubSourceReel] = useState<Reel | null>(null);
-  const [llmMidReel, setLlmMidReel] = useState<Reel | null>(null);
-  const [llmOutReel, setLlmOutReel] = useState<Reel | null>(null);
+  const [githubCandidates, setGithubCandidates] = useState<GithubIssueCandidate[]>([]);
+  const [llmIdeas, setLlmIdeas] = useState<SlotIdea[]>([]);
   const [githubError, setGithubError] = useState<string | null>(null);
   const [llmError, setLlmError] = useState<string | null>(null);
   const [footerHint, setFooterHint] = useState<string | null>(null);
@@ -146,22 +156,38 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
   const [saveHint, setSaveHint] = useState<string | null>(null);
   const spinTimer = useRef<number | null>(null);
 
+  const currentGithubCandidate = githubCandidates.length > 0 ? githubCandidates[dealIndex % githubCandidates.length] : null;
+  const currentLlmIdeas = llmIdeas.length >= 2 ? [
+    llmIdeas[dealIndex % llmIdeas.length],
+    llmIdeas[(dealIndex + 1) % llmIdeas.length]
+  ] : null;
+
   const reels = useMemo(() => {
     const base = [...MOCK_DEALS[dealIndex % MOCK_DEALS.length]];
-    if (githubSourceReel) base[0] = githubSourceReel;
-    if (llmMidReel) base[1] = llmMidReel;
-    if (llmOutReel) base[2] = llmOutReel;
+    if (currentGithubCandidate) {
+      base[0] = {
+        title: truncateReelTitle(currentGithubCandidate.title),
+        detail: `${currentGithubCandidate.githubOwner}/${currentGithubCandidate.githubRepo}#${currentGithubCandidate.githubIssueNumber} · quick-win`,
+      };
+    }
+    if (currentLlmIdeas) {
+      base[1] = {
+        title: truncateReelTitle(currentLlmIdeas[0].title),
+        detail: currentLlmIdeas[0].suggestedScope,
+      };
+      base[2] = {
+        title: truncateReelTitle(currentLlmIdeas[1].title),
+        detail: currentLlmIdeas[1].oneLiner,
+      };
+    }
     return base;
-  }, [dealIndex, githubSourceReel, llmMidReel, llmOutReel]);
+  }, [dealIndex, currentGithubCandidate, currentLlmIdeas]);
 
   useLayoutEffect(() => {
     if (!open) {
       setPhase("empty");
-      setGithubSourceReel(null);
-      setLlmMidReel(null);
-      setLlmOutReel(null);
-      setGithubCandidate(null);
-      setLlmIdeas(null);
+      setGithubCandidates([]);
+      setLlmIdeas([]);
       setGithubError(null);
       setLlmError(null);
       setFooterHint(null);
@@ -170,11 +196,8 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
     }
 
     setPhase("loading");
-    setGithubSourceReel(null);
-    setLlmMidReel(null);
-    setLlmOutReel(null);
-    setGithubCandidate(null);
-    setLlmIdeas(null);
+    setGithubCandidates([]);
+    setLlmIdeas([]);
     setGithubError(null);
     setLlmError(null);
     setFooterHint(null);
@@ -203,12 +226,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
       } else if (gh.ok && "anonymous" in gh && gh.anonymous) {
         /* skip */
       } else if (gh.ok && "configured" in gh && gh.configured && gh.candidates.length > 0) {
-        const c = gh.candidates[0];
-        setGithubCandidate(c);
-        setGithubSourceReel({
-          title: truncateReelTitle(c.title),
-          detail: `${c.githubOwner}/${c.githubRepo}#${c.githubIssueNumber} · quick-win`,
-        });
+        setGithubCandidates(gh.candidates);
       }
 
       if (llm.ok === false) {
@@ -251,7 +269,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
     };
   }, []);
 
-  const busy = open && phase !== "ready";
+  const busy = open && (phase === "loading" || phase === "empty");
 
   const spin = () => {
     if (phase !== "ready") return;
@@ -265,7 +283,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
     }, delay);
   };
 
-  const canSave = Boolean(githubCandidate || (llmIdeas && llmIdeas.length >= 2));
+  const canSave = Boolean(currentGithubCandidate || currentLlmIdeas);
 
   const save = async () => {
     if (!canSave || saveBusy) return;
@@ -273,8 +291,8 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
     setSaveHint(null);
     const idempotencyKey = crypto.randomUUID();
     try {
-      if (githubCandidate) {
-        const g = githubCandidate;
+      if (currentGithubCandidate) {
+        const g = currentGithubCandidate;
         const res = await saveSpunTask({
           source: "github",
           idempotencyKey,
@@ -292,20 +310,22 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
           setSaveHint(res.error);
         } else {
           setSaveHint(res.deduped ? "Already saved (duplicate idempotency key)." : "Saved to board.");
+          if (!res.deduped) router.refresh();
         }
-      } else if (llmIdeas && llmIdeas.length >= 2) {
+      } else if (currentLlmIdeas) {
         const res = await saveSpunTask({
           source: "ai",
           idempotencyKey,
           ai: {
-            title: `${llmIdeas[0].title} — ${llmIdeas[1].title}`,
-            description: `${llmIdeas[0].oneLiner}\n\n${llmIdeas[1].suggestedScope}`,
+            title: `${currentLlmIdeas[0].title} — ${currentLlmIdeas[1].title}`,
+            description: `${currentLlmIdeas[0].oneLiner}\n\n${currentLlmIdeas[1].suggestedScope}`,
           },
         });
         if (!res.ok) {
           setSaveHint(res.error);
         } else {
           setSaveHint(res.deduped ? "Already saved (duplicate idempotency key)." : "Saved to board.");
+          if (!res.deduped) router.refresh();
         }
       }
     } finally {
@@ -319,18 +339,11 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
       const gh = await prefetchGithubQuickWins();
       if (!gh.ok) {
         setGithubError(gh.error);
-        setGithubCandidate(null);
-        setGithubSourceReel(null);
+        setGithubCandidates([]);
         return;
       }
-      if (gh.ok && "anonymous" in gh && gh.anonymous) return;
       if (gh.ok && "configured" in gh && gh.configured && gh.candidates.length > 0) {
-        const c = gh.candidates[0];
-        setGithubCandidate(c);
-        setGithubSourceReel({
-          title: truncateReelTitle(c.title),
-          detail: `${c.githubOwner}/${c.githubRepo}#${c.githubIssueNumber} · quick-win`,
-        });
+        setGithubCandidates(gh.candidates);
       }
     })();
   };
@@ -341,9 +354,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
       const llm = await prefetchSlotLlmIdeas();
       if (llm.ok === false) {
         setLlmError(llm.error);
-        setLlmIdeas(null);
-        setLlmMidReel(null);
-        setLlmOutReel(null);
+        setLlmIdeas([]);
         return;
       }
       if (
@@ -355,14 +366,6 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
         llm.ideas.length >= 2
       ) {
         setLlmIdeas(llm.ideas);
-        setLlmMidReel({
-          title: truncateReelTitle(llm.ideas[0].title),
-          detail: llm.ideas[0].suggestedScope,
-        });
-        setLlmOutReel({
-          title: truncateReelTitle(llm.ideas[1].title),
-          detail: llm.ideas[1].oneLiner,
-        });
       }
     })();
   };
@@ -386,7 +389,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
               role="dialog"
               aria-modal="true"
               aria-labelledby="slot-modal-title"
-              className="pointer-events-auto w-full max-w-2xl rounded border border-focus/35 bg-glass-panel p-6 shadow-focus backdrop-blur-xl"
+              className={`pointer-events-auto w-full max-w-2xl rounded border border-focus/35 bg-glass-panel p-6 shadow-focus backdrop-blur-xl ${phase === "spinning" ? "animate-shake" : ""}`}
               initial={decorativeMotionDisabled ? false : { opacity: 0, scale: 0.96, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={decorativeMotionDisabled ? undefined : { opacity: 0, scale: 0.98, y: 8 }}
@@ -422,6 +425,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                   reduced={decorativeMotionDisabled}
                   errorHint={githubError}
                   onRetry={githubError ? retryGithub : undefined}
+                  phase={phase}
                 />
                 <ReelColumn
                   label="Tech / scope"
@@ -431,6 +435,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                   reduced={decorativeMotionDisabled}
                   errorHint={llmError}
                   onRetry={llmError ? retryLlm : undefined}
+                  phase={phase}
                 />
                 <ReelColumn
                   label="Output"
@@ -440,8 +445,52 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                   reduced={decorativeMotionDisabled}
                   errorHint={llmError}
                   onRetry={llmError ? retryLlm : undefined}
+                  phase={phase}
                 />
               </div>
+
+              <AnimatePresence>
+                {phase === "ready" && (currentGithubCandidate || currentLlmIdeas) ? (
+                  <motion.div
+                    initial={decorativeMotionDisabled ? false : { opacity: 0, height: 0, marginTop: 0 }}
+                    animate={{ opacity: 1, height: "auto", marginTop: 24 }}
+                    exit={decorativeMotionDisabled ? undefined : { opacity: 0, height: 0, marginTop: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="rounded border border-surface-border bg-surface/50 p-4 shadow-inner">
+                      <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-focus/70">
+                        Task Preview
+                      </div>
+                      {currentGithubCandidate ? (
+                        <>
+                          <h3 className="text-sm font-semibold text-ink">{currentGithubCandidate.title}</h3>
+                          <div className="mt-2 max-h-32 overflow-y-auto pr-2 text-xs text-ink-muted custom-scrollbar">
+                            <p className="whitespace-pre-wrap">{currentGithubCandidate.description || "No description provided."}</p>
+                          </div>
+                          <a
+                            href={currentGithubCandidate.githubHtmlUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-3 inline-flex items-center gap-1 font-mono text-[11px] font-medium text-focus hover:underline"
+                          >
+                            View Issue on GitHub <span aria-hidden="true">↗</span>
+                          </a>
+                        </>
+                      ) : currentLlmIdeas ? (
+                        <>
+                          <h3 className="text-sm font-semibold text-ink">
+                            {currentLlmIdeas[0].title} — {currentLlmIdeas[1].title}
+                          </h3>
+                          <div className="mt-2 space-y-2 text-xs text-ink-muted">
+                            <p><strong className="text-ink/80">Scope:</strong> {currentLlmIdeas[0].suggestedScope}</p>
+                            <p><strong className="text-ink/80">Goal:</strong> {currentLlmIdeas[1].oneLiner}</p>
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
 
               <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
                 <p className="max-w-xl text-xs text-ink-muted">
@@ -452,13 +501,13 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                   ) : phase === "loading" ? (
                     "Prefetching GitHub + AI (allSettled bundle) + minimum arm delay…"
                   ) : phase === "ready" ? (
-                    githubSourceReel || llmMidReel ? (
+                    currentGithubCandidate || currentLlmIdeas ? (
                       `Armed: ${[
-                        githubSourceReel ? "GitHub source" : null,
-                        llmMidReel ? "AI reels" : null,
+                        currentGithubCandidate ? "GitHub source" : null,
+                        currentLlmIdeas ? "AI reels" : null,
                       ]
                         .filter(Boolean)
-                        .join(" · ")}. Spin reshuffles mock stripes on any reel still on demo data.`
+                        .join(" · ")}. Spin reshuffles issues from pool.`
                     ) : (
                       "Reels armed on mock combos until GitHub App + OpenAI + Upstash env are set (see .env.example)."
                     )

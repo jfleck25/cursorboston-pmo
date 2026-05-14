@@ -55,10 +55,16 @@ const config: Config = {
           "50%": { opacity: "0.45" },
           "100%": { opacity: "0.2" },
         },
+        shake: {
+          "0%, 100%": { transform: "translate(0, 0) rotate(0deg)" },
+          "10%, 30%, 50%, 70%, 90%": { transform: "translate(-2px, -2px) rotate(-1deg)" },
+          "20%, 40%, 60%, 80%": { transform: "translate(2px, 2px) rotate(1deg)" },
+        },
       },
       animation: {
         conveyor: "conveyor 0.85s linear infinite",
         "radar-sweep": "radar-sweep 4.5s ease-in-out infinite",
+        shake: "shake 0.5s ease-in-out",
       },
       boxShadow: {
         ship: "0 0 20px rgba(0, 255, 102, 0.35)",

@@ -4,6 +4,7 @@ import type { TaskStatus } from "@prisma/client";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+import confetti from "canvas-confetti";
 import { shipTask } from "@/actions/ship-task";
 import { useMotionPreference } from "@/components/providers/MotionPreferenceProvider";
 
@@ -28,10 +29,10 @@ export function TaskShipButton({
   const [burst, setBurst] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  const canShip = Boolean(viewerUserId) && status !== "shipped" && !pending;
+  const canShip = Boolean(viewerUserId) && status === "in_progress" && !pending;
 
   const run = useCallback(async () => {
-    if (!viewerUserId || status === "shipped" || pending) return;
+    if (!viewerUserId || status !== "in_progress" || pending) return;
     setPending(true);
     setToast(null);
     onOptimisticShip?.(taskId);
@@ -49,6 +50,18 @@ export function TaskShipButton({
     }
     if (!decorativeMotionDisabled) {
       setBurst(true);
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#00FF66", "#00F0FF", "#A371F7"],
+      });
+      
+      // Screen shake effect
+      const body = document.body;
+      body.classList.add("animate-shake");
+      setTimeout(() => body.classList.remove("animate-shake"), 500);
+
       window.setTimeout(() => setBurst(false), 900);
     }
     setPending(false);
@@ -64,7 +77,7 @@ export function TaskShipButton({
     decorativeMotionDisabled,
   ]);
 
-  if (!viewerUserId || status === "shipped") return null;
+  if (!viewerUserId || status !== "in_progress") return null;
 
   return (
     <div className="relative mt-2 flex flex-col items-end gap-1">

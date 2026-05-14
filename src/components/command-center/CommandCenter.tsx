@@ -28,8 +28,15 @@ function computeBlips(
     );
     const assignedWeek = mine.length;
     const shippedWeek = mine.filter((t) => t.status === "shipped").length;
-    const inward =
-      assignedWeek === 0 ? 0 : Math.min(1, shippedWeek / Math.max(assignedWeek, 1));
+    
+    // 0 = outer ring (no week assignments)
+    // 0.5 = floating area (assigned but 0 shipped)
+    // 1 = hub (1+ shipped)
+    let inward = 0;
+    if (assignedWeek > 0) {
+      inward = shippedWeek > 0 ? 1 : 0.5;
+    }
+    
     const angle = (2 * Math.PI * index) / members.length - Math.PI / 2;
 
     return { member, angle, inward, assignedWeek, shippedWeek };
@@ -59,6 +66,8 @@ export function CommandCenter({
       ? 0
       : Math.min(100, Math.round((100 * weekShippedCount) / COHORT_WEEK_SHIP_TARGET));
 
+  const actualFuelPercent = Math.min(100, Math.round((100 * weekShippedCount) / COHORT_WEEK_SHIP_TARGET));
+
   return (
     <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
       <div className="space-y-3">
@@ -68,7 +77,7 @@ export function CommandCenter({
         <h2 className="font-sans text-xl font-semibold text-ink md:text-2xl">Cohort fuel</h2>
         <p className="text-sm text-ink-muted">
           Fill tracks{" "}
-          <span className="font-mono text-ink">shipped ÷ active-week tasks</span>. Stretch line
+          <span className="font-mono text-ink">shipped ÷ target ({COHORT_WEEK_SHIP_TARGET})</span>. Stretch line
           compares ships to a cohort weekly target (
           <span className="font-mono text-ship">{COHORT_WEEK_SHIP_TARGET}</span>
           ).
@@ -81,7 +90,7 @@ export function CommandCenter({
                 Week completion
               </div>
               <div className="mt-1 font-mono text-3xl font-bold tabular-nums text-ship">
-                {weekTaskCount === 0 ? "—" : `${fuelPercent}%`}
+                {weekTaskCount === 0 ? "—" : `${actualFuelPercent}%`}
               </div>
               <div className="mt-1 font-mono text-[11px] text-ink-muted">
                 {weekTaskCount === 0
@@ -97,7 +106,7 @@ export function CommandCenter({
                 className="absolute bottom-0 left-0 right-0 rounded-b-sm bg-gradient-to-t from-ship to-ship-dim"
                 initial={false}
                 animate={{
-                  height: `${weekTaskCount === 0 ? 6 : Math.max(8, fuelPercent)}%`,
+                  height: `${weekTaskCount === 0 ? 6 : Math.max(8, actualFuelPercent)}%`,
                 }}
                 transition={
                   decorativeMotionDisabled
@@ -113,12 +122,12 @@ export function CommandCenter({
             role="meter"
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-valuenow={weekTaskCount === 0 ? 0 : fuelPercent}
+            aria-valuenow={weekTaskCount === 0 ? 0 : actualFuelPercent}
             aria-label="Cohort fuel for active week tasks"
           >
             <div
               className="h-full bg-gradient-to-r from-ship-dim to-ship shadow-ship transition-[width] duration-500 ease-out"
-              style={{ width: `${weekTaskCount === 0 ? 0 : fuelPercent}%` }}
+              style={{ width: `${weekTaskCount === 0 ? 0 : actualFuelPercent}%` }}
             />
           </div>
 
@@ -140,8 +149,8 @@ export function CommandCenter({
       <div className="space-y-3">
         <h3 className="font-sans text-lg font-semibold text-ink">Live radar</h3>
         <p className="text-sm text-ink-muted">
-          Each dot is a cohort member. Distance to center is{' '}
-          <span className="font-mono text-ink">personal ships ÷ week assignments</span>{' '}
+          Each dot is a cohort member. Distance to center is state-based:{' '}
+          <span className="font-mono text-ink">Idle → Assigned → Shipped</span>{' '}
           (outer ring when not on the board this week—non-competitive signal).
         </p>
 
@@ -173,7 +182,7 @@ export function CommandCenter({
                 </p>
               </div>
             ) : (
-              blips.map((blip) => {
+              blips.map((blip, idx) => {
                 const outer = 44;
                 const inner = 16;
                 const radiusPct = outer - blip.inward * (outer - inner);
@@ -182,7 +191,7 @@ export function CommandCenter({
 
                 return (
                   <motion.div
-                    key={blip.member.id}
+                    key={`${blip.member.id}-${idx}`}
                     className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1"
                     style={{ left: `${x}%`, top: `${y}%` }}
                     initial={false}

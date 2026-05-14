@@ -5,9 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMotionPreference } from "@/components/providers/MotionPreferenceProvider";
-import type { DashboardTask } from "@/lib/cohort-dashboard";
+import type { DashboardTask, DashboardMember } from "@/lib/cohort-dashboard";
 import { TaskShipButton } from "./TaskShipButton";
+import { TaskManagementModal } from "./TaskManagementModal";
+import { updateTaskStatus } from "@/actions/update-task-status";
 
 const ZONES: { status: TaskStatus; label: string; blurb: string }[] = [
   { status: "incoming", label: "Incoming", blurb: "Fresh intake" },
@@ -20,12 +23,15 @@ function TaskCard({
   viewerUserId,
   onOptimisticShip,
   onRollbackShip,
+  onEdit,
 }: {
   task: DashboardTask;
   viewerUserId: string | null;
   onOptimisticShip: (id: string) => void;
   onRollbackShip: (id: string) => void;
+  onEdit: (task: DashboardTask) => void;
 }) {
+  const router = useRouter();
   const isShipped = task.status === "shipped";
   const isInProgress = task.status === "in_progress";
   let accent = "border-surface-border";
@@ -100,13 +106,46 @@ function TaskCard({
           </span>
         </div>
         
-        <TaskShipButton
-          taskId={task.id}
-          status={task.status}
-          viewerUserId={viewerUserId}
-          onOptimisticShip={onOptimisticShip}
-          onRollbackShip={onRollbackShip}
-        />
+        <div className="flex items-center gap-2">
+          {viewerUserId && (
+            <button
+              onClick={() => onEdit(task)}
+              className="rounded border border-ink bg-surface-raised px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wide text-ink transition hover:bg-ink/10"
+              title="Edit Task"
+            >
+              Edit
+            </button>
+          )}
+          {task.status === "incoming" && viewerUserId && (
+            <button
+              onClick={async () => {
+                await updateTaskStatus(task.id, "in_progress");
+                router.refresh();
+              }}
+              className="rounded border border-focus bg-surface-raised px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wide text-focus transition hover:bg-focus/10"
+            >
+              Start Work
+            </button>
+          )}
+          {task.status === "shipped" && viewerUserId && (
+            <button
+              onClick={async () => {
+                await updateTaskStatus(task.id, "in_progress");
+                router.refresh();
+              }}
+              className="rounded border border-warning bg-surface-raised px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-wide text-warning transition hover:bg-warning/10"
+            >
+              Reopen
+            </button>
+          )}
+          <TaskShipButton
+            taskId={task.id}
+            status={task.status}
+            viewerUserId={viewerUserId}
+            onOptimisticShip={onOptimisticShip}
+            onRollbackShip={onRollbackShip}
+          />
+        </div>
       </div>
     </article>
   );
@@ -114,13 +153,16 @@ function TaskCard({
 
 export function AssemblyLine({
   tasks,
+  members,
   viewerUserId,
 }: {
   tasks: DashboardTask[];
+  members: DashboardMember[];
   viewerUserId: string | null;
 }) {
   const { decorativeMotionDisabled } = useMotionPreference();
   const [optimistic, setOptimistic] = useState<Record<string, TaskStatus>>({});
+  const [editingTask, setEditingTask] = useState<DashboardTask | null>(null);
 
   const merged = useMemo(() => {
     return tasks.map((t) => {
@@ -203,13 +245,14 @@ export function AssemblyLine({
                       </p>
                     </div>
                   ) : (
-                    list.map((task) => (
+                    list.map((task, idx) => (
                       <TaskCard
-                        key={task.id}
+                        key={`${task.id}-${idx}`}
                         task={task}
                         viewerUserId={viewerUserId}
                         onOptimisticShip={onOptimisticShip}
                         onRollbackShip={onRollbackShip}
+                        onEdit={setEditingTask}
                       />
                     ))
                   )}
@@ -219,6 +262,14 @@ export function AssemblyLine({
           })}
         </div>
       </div>
+
+      {editingTask && (
+        <TaskManagementModal
+          task={editingTask}
+          members={members}
+          onClose={() => setEditingTask(null)}
+        />
+      )}
     </section>
   );
 }

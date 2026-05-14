@@ -29,7 +29,7 @@ async function main() {
     (await prisma.week.create({
       data: {
         cohortId: cohort.id,
-        title: "Week 1 — Foundation",
+        title: "Week 1 — Project Management",
         startsAt: weekStart,
         endsAt: weekEnd,
         isActive: true,

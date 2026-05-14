@@ -40,12 +40,11 @@ export default async function HomePage() {
   return (
     <div className="space-y-12">
       <section className="max-w-2xl space-y-4">
-        <p className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-focus">
-          Phase 2 — Assembly + radar
-        </p>
-        <h1 className="font-sans text-3xl font-bold tracking-tight text-ink md:text-4xl">
-          Build in public. Ship on Fridays.
-        </h1>
+        <div>
+          <h2 className="font-sans text-xl font-semibold text-ink md:text-2xl">
+            Assembly & radar
+          </h2>
+        </div>
         <p className="text-base leading-relaxed text-ink-muted">
           The cohort&apos;s shipping engine: horizontal assembly lines,
           radar-style pulse, and a slot machine for the next win—without the Jira energy

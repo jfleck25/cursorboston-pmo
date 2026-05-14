@@ -60,7 +60,7 @@ export function FridayLaunchGrid({
               </div>
               {t.githubHtmlUrl ? (
                 <Link href={t.githubHtmlUrl} target="_blank" rel="noreferrer" className="font-mono text-[11px] text-focus hover:underline truncate block max-w-full">
-                  github.com/{t.githubOwner}/{t.githubRepo}
+                  {t.githubHtmlUrl.replace("https://", "")}
                 </Link>
               ) : (
                 <span className="font-mono text-[11px] text-ink-muted">Momentum / {t.source}</span>
@@ -96,19 +96,18 @@ export function FridayLaunchGrid({
                   t.myVote ? "text-ship" : "text-ink"
                 }`}
               >
-                <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>arrow_upward</span>
+                <span className="text-[18px]">⬆️</span>
                 {t.voteCount}
               </button>
             ) : (
               <div className="flex items-center gap-2 rounded bg-surface-raised px-4 py-2 font-mono text-sm font-bold text-ink-muted">
-                <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
+                <span className="text-[18px]">⬆️</span>
                 {t.voteCount}
               </div>
             )}
 
-            <div className="flex items-center gap-1.5 font-mono text-sm font-bold text-warning">
-              <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
-              {t.voteCount > 0 ? t.voteCount * 4 + 8 : 0}
+            <div className="flex items-center gap-1.5 font-mono text-sm font-bold text-ink-muted">
+              {/* Heat score removed as requested */}
             </div>
           </div>
         </article>

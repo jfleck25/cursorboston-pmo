@@ -36,7 +36,7 @@ export default async function AssemblyPage() {
       </section>
 
       {session?.user && dashboard ? (
-        <AssemblyLine tasks={dashboard.tasks} viewerUserId={session.user.id} />
+        <AssemblyLine tasks={dashboard.tasks} members={dashboard.members} viewerUserId={session.user.id} />
       ) : (
         <p className="text-sm text-ink-muted">Sign in to view the assembly line for your cohort.</p>
       )}

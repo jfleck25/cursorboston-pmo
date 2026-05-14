@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Session } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { MotionToggle } from "./MotionToggle";
+import { CountdownTimer } from "./CountdownTimer";
 
 type TopNavProps = {
   session: Session | null;
@@ -26,13 +27,7 @@ export function TopNav({
         </div>
 
         <div className="flex items-center gap-3 md:gap-4 flex-1 justify-end">
-          <div className="relative hidden md:block max-w-xs w-full mr-4">
-            <input type="text" placeholder="Search..." className="w-full bg-surface-raised border border-surface-border rounded-md py-1.5 px-3 text-sm text-ink placeholder:text-ink-muted focus:border-ship focus:outline-none focus:ring-1 focus:ring-ship transition-colors" />
-          </div>
-
-          <button className="text-ink-muted hover:text-ink transition-colors">
-            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 0" }}>notifications</span>
-          </button>
+          <CountdownTimer />
           
           <MotionToggle />
 
@@ -42,8 +37,7 @@ export function TopNav({
                 className="flex items-center gap-2 rounded border border-surface-border bg-surface-raised/80 px-2 py-1 font-mono text-sm text-ship shadow-ship"
                 title="Current streak (weekday rules apply on ship)"
               >
-                <span aria-hidden>🔥</span>
-                <span className="tabular-nums">{streak}</span>
+                <span className="tabular-nums">{streak} SHIPS</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -62,7 +56,7 @@ export function TopNav({
                       .toUpperCase()}
                   </div>
                 )}
-                <span className="hidden max-w-[140px] truncate text-sm text-ink md:inline">
+                <span className="hidden max-w-[200px] truncate text-sm text-ink md:inline" title={displayName ?? session.user.email ?? ""}>
                   {displayName ?? session.user.email}
                 </span>
               </div>
