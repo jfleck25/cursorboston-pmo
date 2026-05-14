@@ -48,7 +48,7 @@ export default async function HomePage() {
           Build in public. Ship on Fridays.
         </h1>
         <p className="text-base leading-relaxed text-ink-muted">
-          Momentum is the cohort&apos;s shipping engine: horizontal assembly lines,
+          The cohort&apos;s shipping engine: horizontal assembly lines,
           radar-style pulse, and a slot machine for the next win—without the Jira energy
           leak.
         </p>

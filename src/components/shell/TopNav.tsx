@@ -23,15 +23,12 @@ export function TopNav({
     <header className="sticky top-0 z-40 border-b border-surface-border bg-surface/90 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between gap-4 px-4 md:px-8">
         <div className="flex items-center gap-3 w-1/3">
-          <div className="font-mono text-[11px] font-bold text-ship tracking-wide">
-            Momentum
-          </div>
         </div>
 
         <div className="flex items-center gap-3 md:gap-4 flex-1 justify-end">
-          <div className="relative hidden md:block max-w-sm w-full mr-4">
+          <div className="relative hidden md:block max-w-xs w-full mr-4">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted text-[16px]" style={{ fontVariationSettings: "'FILL' 0" }}>search</span>
-            <input type="text" placeholder="QUERY_SYSTEM..." className="w-full bg-surface-raised border border-surface-border rounded py-1.5 pl-9 pr-3 text-xs font-mono text-ink placeholder:text-ink-muted focus:border-ship focus:outline-none focus:ring-1 focus:ring-ship transition-colors" />
+            <input type="text" placeholder="Search..." className="w-full bg-surface-raised border border-surface-border rounded-md py-1.5 pl-9 pr-3 text-sm text-ink placeholder:text-ink-muted focus:border-ship focus:outline-none focus:ring-1 focus:ring-ship transition-colors" />
           </div>
 
           <button className="text-ink-muted hover:text-ink transition-colors">
