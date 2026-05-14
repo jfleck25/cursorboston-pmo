@@ -35,7 +35,10 @@ function isGithubAppEnvReady(): boolean {
   const allowlist = parseGithubRepoAllowlist(process.env.GITHUB_APP_REPO_ALLOWLIST);
   
   if (!appId || !installationId || !privateKeyRaw || allowlist.length === 0) {
-
+    if (!appId) console.warn("[github-app] GITHUB_APP_ID is missing.");
+    if (!installationId) console.warn("[github-app] GITHUB_APP_INSTALLATION_ID is missing.");
+    if (!privateKeyRaw) console.warn("[github-app] GITHUB_APP_PRIVATE_KEY is missing.");
+    if (allowlist.length === 0) console.warn("[github-app] GITHUB_APP_REPO_ALLOWLIST is empty or invalid.");
     return false;
   }
 
@@ -70,7 +73,7 @@ function createInstallationOctokit(): Octokit | null {
   });
 }
 
-function issueLabel(): string {
+export function issueLabel(): string {
   return process.env.GITHUB_APP_ISSUE_LABEL?.trim() || DEFAULT_QUICK_WIN_LABEL;
 }
 
@@ -80,11 +83,13 @@ function issueLabel(): string {
  */
 export async function fetchQuickWinGithubIssues(): Promise<{
   configured: boolean;
+  label: string;
   issues: GithubIssueCandidate[];
   partialErrors: string[];
 }> {
+  const label = issueLabel();
   if (!isGithubAppEnvReady()) {
-    return { configured: false, issues: [], partialErrors: [] };
+    return { configured: false, label, issues: [], partialErrors: [] };
   }
 
   const octokit = createInstallationOctokit();
@@ -98,6 +103,7 @@ export async function fetchQuickWinGithubIssues(): Promise<{
 
   const settled = await Promise.allSettled(
     allowlist.map(async ({ owner, repo }) => {
+      console.log(`[github-app] fetching ${owner}/${repo} with label "${label}"...`);
       const { data } = await octokit.rest.issues.listForRepo({
         owner,
         repo,
@@ -121,6 +127,7 @@ export async function fetchQuickWinGithubIssues(): Promise<{
           description: row.body ?? null,
         });
       }
+      console.log(`[github-app] found ${repoIssues.length} candidates in ${owner}/${repo}`);
       return repoIssues;
     }),
   );
@@ -137,10 +144,12 @@ export async function fetchQuickWinGithubIssues(): Promise<{
     } else {
       const msg = r.reason instanceof Error ? r.reason.message : String(r.reason);
       partialErrors.push(`${ref.owner}/${ref.repo}: ${msg}`);
-      console.warn("[github-app] repo fetch failed", { owner: ref.owner, repo: ref.repo });
+      console.warn(`[github-app] ${ref.owner}/${ref.repo} fetch failed: ${msg}`);
     }
     if (collected.length >= TOTAL_CAP) break;
   }
 
-  return { configured: true, issues: collected.slice(0, TOTAL_CAP), partialErrors };
+  console.log(`[github-app] fetch complete. total candidates: ${collected.length}`);
+
+  return { configured: true, label, issues: collected.slice(0, TOTAL_CAP), partialErrors };
 }

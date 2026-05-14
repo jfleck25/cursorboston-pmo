@@ -97,8 +97,30 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
       setCandidates(nextCandidates);
 
       const hints: string[] = [];
-      if (!gh.ok) hints.push(`GitHub: ${gh.error}`);
-      if (llm.ok === false) hints.push(`AI: ${llm.error}`);
+      if (!gh.ok) {
+        hints.push(`GitHub Error: ${gh.error}`);
+      } else if ("configured" in gh && gh.configured) {
+        if (gh.candidates.length === 0) {
+          hints.push(`GitHub: 0 "${gh.label}" issues found.`);
+        }
+        if (gh.partialErrors && gh.partialErrors.length > 0) {
+          hints.push(`GitHub partial: ${gh.partialErrors.join(", ")}`);
+        }
+      }
+
+      if (llm.ok === false) {
+        hints.push(`AI Error: ${llm.error}`);
+      } else if (
+        llm.ok &&
+        !("anonymous" in llm && llm.anonymous) &&
+        "configured" in llm &&
+        llm.configured &&
+        "ideas" in llm &&
+        llm.ideas.length === 0
+      ) {
+        hints.push("AI: 0 ideas generated.");
+      }
+
       setFooterHint(hints.length ? hints.join(" · ") : null);
 
       setPhase("ready");
@@ -355,9 +377,8 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                         .filter(Boolean)
                         .join(" · ")}. Spin reshuffles issues from pool.`
                     ) : (
-                      "Reels armed on mock combos until GitHub App + OpenAI + Upstash env are set (see .env.example)."
+                      footerHint || "No tasks found in GitHub or AI pool. Check labels and env vars."
                     )
-
                   ) : phase === "spinning" ? (
                     "Shuffling…"
                   ) : (

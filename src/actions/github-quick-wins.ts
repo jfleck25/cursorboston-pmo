@@ -7,7 +7,7 @@ import type { GithubIssueCandidate } from "@/lib/github-app-types";
 export type PrefetchGithubQuickWinsResult =
   | { ok: true; anonymous: true }
   | { ok: true; configured: false }
-  | { ok: true; configured: true; candidates: GithubIssueCandidate[]; partialErrors: string[] }
+  | { ok: true; configured: true; label: string; candidates: GithubIssueCandidate[]; partialErrors: string[] }
   | { ok: false; error: string };
 
 /**
@@ -21,13 +21,14 @@ export async function prefetchGithubQuickWins(): Promise<PrefetchGithubQuickWins
   }
 
   try {
-    const { configured, issues, partialErrors } = await fetchQuickWinGithubIssues();
+    const { configured, label, issues, partialErrors } = await fetchQuickWinGithubIssues();
     if (!configured) {
       return { ok: true, configured: false };
     }
     return {
       ok: true,
       configured: true,
+      label,
       candidates: issues,
       partialErrors,
     };
