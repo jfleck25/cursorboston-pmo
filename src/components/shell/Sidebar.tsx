@@ -39,7 +39,7 @@ export function Sidebar({ avatarUrl }: { avatarUrl: string | null }) {
         <div className="flex flex-col">
           <h1 className="font-sans text-lg font-bold text-ship tracking-wide">Momentum</h1>
           <span className="font-mono text-[9px] text-ink-muted uppercase tracking-widest">
-            Anti-PM Shipping<br/>Engine
+            Shipping<br/>Engine
           </span>
         </div>
       </div>
