@@ -35,12 +35,7 @@ function isGithubAppEnvReady(): boolean {
   const allowlist = parseGithubRepoAllowlist(process.env.GITHUB_APP_REPO_ALLOWLIST);
   
   if (!appId || !installationId || !privateKeyRaw || allowlist.length === 0) {
-    console.log("[github-app] Missing vars:", { 
-      appId: !!appId, 
-      installationId: !!installationId, 
-      privateKey: !!privateKeyRaw, 
-      allowlistCount: allowlist.length 
-    });
+
     return false;
   }
 
@@ -88,9 +83,7 @@ export async function fetchQuickWinGithubIssues(): Promise<{
   issues: GithubIssueCandidate[];
   partialErrors: string[];
 }> {
-  const ready = isGithubAppEnvReady();
-  console.log("[github-app] isGithubAppEnvReady?", ready);
-  if (!ready) {
+  if (!isGithubAppEnvReady()) {
     return { configured: false, issues: [], partialErrors: [] };
   }
 
