@@ -48,7 +48,6 @@ export function ShellClient({ variant = "floating" }: { variant?: "floating" | "
           onClick={() => setOpen(true)}
           className="w-full flex items-center justify-center gap-2 rounded bg-ship py-4 font-mono text-xs font-bold uppercase tracking-widest text-surface shadow-[0_0_12px_rgba(0,255,102,0.4)] transition hover:bg-[#6bff83] hover:shadow-[0_0_20px_rgba(0,255,102,0.6)]"
         >
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
           Pull the Lever
         </button>
       )}

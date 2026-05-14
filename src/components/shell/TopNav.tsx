@@ -27,8 +27,7 @@ export function TopNav({
 
         <div className="flex items-center gap-3 md:gap-4 flex-1 justify-end">
           <div className="relative hidden md:block max-w-xs w-full mr-4">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted text-[16px]" style={{ fontVariationSettings: "'FILL' 0" }}>search</span>
-            <input type="text" placeholder="Search..." className="w-full bg-surface-raised border border-surface-border rounded-md py-1.5 pl-9 pr-3 text-sm text-ink placeholder:text-ink-muted focus:border-ship focus:outline-none focus:ring-1 focus:ring-ship transition-colors" />
+            <input type="text" placeholder="Search..." className="w-full bg-surface-raised border border-surface-border rounded-md py-1.5 px-3 text-sm text-ink placeholder:text-ink-muted focus:border-ship focus:outline-none focus:ring-1 focus:ring-ship transition-colors" />
           </div>
 
           <button className="text-ink-muted hover:text-ink transition-colors">
