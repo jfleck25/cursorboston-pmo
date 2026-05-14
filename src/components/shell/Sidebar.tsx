@@ -12,19 +12,16 @@ export function Sidebar({ avatarUrl }: { avatarUrl: string | null }) {
     {
       name: "Command Center",
       href: "/",
-      icon: "terminal",
       active: pathname === "/",
     },
     {
       name: "Assembly Line",
       href: "/assembly",
-      icon: "precision_manufacturing",
       active: pathname === "/assembly",
     },
     {
       name: "Friday Launch",
       href: "/friday",
-      icon: "rocket_launch",
       active: pathname === "/friday",
     },
   ];
@@ -49,14 +46,13 @@ export function Sidebar({ avatarUrl }: { avatarUrl: string | null }) {
           <Link
             key={link.name}
             href={link.href}
-            className={`flex items-center gap-2 rounded-r-md px-3 py-2 font-mono text-xs font-bold transition-colors ${
+            className={`block rounded-r-md px-3 py-2 font-mono text-xs font-bold transition-colors ${
               link.active
                 ? "border-l-2 border-ship bg-ship/10 text-ship"
                 : "text-ink-muted hover:bg-surface-raised/50 hover:text-ink"
             }`}
           >
-            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>{link.icon}</span>
-            <span>{link.name}</span>
+            {link.name}
           </Link>
         ))}
       </nav>
