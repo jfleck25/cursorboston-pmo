@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { prefetchSlotBundle } from "@/actions/prefetch-slot-bundle";
-import { prefetchGithubQuickWins } from "@/actions/github-quick-wins";
-import { prefetchSlotLlmIdeas } from "@/actions/slot-llm";
 import { saveSpunTask } from "@/actions/save-spun-task";
 import { useMotionPreference } from "@/components/providers/MotionPreferenceProvider";
 import type { GithubIssueCandidate } from "@/lib/github-app-types";
@@ -29,8 +27,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
   const [phase, setPhase] = useState<"empty" | "loading" | "ready" | "spinning">("empty");
   const [dealIndex, setDealIndex] = useState(0);
   const [candidates, setCandidates] = useState<SlotCandidate[]>([]);
-  const [githubError, setGithubError] = useState<string | null>(null);
-  const [llmError, setLlmError] = useState<string | null>(null);
+
   const [footerHint, setFooterHint] = useState<string | null>(null);
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveHint, setSaveHint] = useState<string | null>(null);
@@ -44,8 +41,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
       setPhase("empty");
       setCandidates([]);
 
-      setGithubError(null);
-      setLlmError(null);
+
       setFooterHint(null);
       setSaveHint(null);
       return;
@@ -53,8 +49,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
 
     setPhase("loading");
     setCandidates([]);
-    setGithubError(null);
-    setLlmError(null);
+
     setFooterHint(null);
     setSaveHint(null);
 
@@ -68,8 +63,8 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
       const settled = await Promise.allSettled([delayP, prefetchSlotBundle()]);
       if (cancelled) return;
       if (settled[1].status === "rejected") {
-        setGithubError("Prefetch failed.");
-        setLlmError("Prefetch failed.");
+        // Prefetch failed.
+
         setPhase("ready");
         return;
       }
@@ -79,13 +74,15 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
       const nextCandidates: SlotCandidate[] = [];
 
       if (!gh.ok) {
-        setGithubError(gh.error);
+        // gh.error
+
       } else if (gh.ok && "configured" in gh && gh.configured && gh.candidates.length > 0) {
         gh.candidates.forEach(c => nextCandidates.push({ type: "github", data: c }));
       }
 
       if (llm.ok === false) {
-        setLlmError(llm.error);
+        // llm.error
+
       } else if (
         llm.ok &&
         !("anonymous" in llm && llm.anonymous) &&
@@ -185,46 +182,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
   };
 
 
-  const retryGithub = () => {
-    setGithubError(null);
-    void (async () => {
-      const gh = await prefetchGithubQuickWins();
-      if (!gh.ok) {
-        setGithubError(gh.error);
-        return;
-      }
-      if (gh.ok && "configured" in gh && gh.configured && gh.candidates.length > 0) {
-        setCandidates(prev => [
-          ...prev.filter(c => c.type !== "github"),
-          ...gh.candidates.map(c => ({ type: "github" as const, data: c }))
-        ]);
-      }
-    })();
-  };
 
-  const retryLlm = () => {
-    setLlmError(null);
-    void (async () => {
-      const llm = await prefetchSlotLlmIdeas();
-      if (llm.ok === false) {
-        setLlmError(llm.error);
-        return;
-      }
-      if (
-        llm.ok &&
-        !("anonymous" in llm && llm.anonymous) &&
-        "configured" in llm &&
-        llm.configured &&
-        "ideas" in llm &&
-        llm.ideas.length > 0
-      ) {
-        setCandidates(prev => [
-          ...prev.filter(c => c.type !== "ai"),
-          ...llm.ideas.map(i => ({ type: "ai" as const, data: i }))
-        ]);
-      }
-    })();
-  };
 
 
   return (
