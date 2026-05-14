@@ -2,7 +2,6 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { TopNav } from "./TopNav";
 import { Sidebar } from "./Sidebar";
-import { ShellClient } from "./ShellClient";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await auth();

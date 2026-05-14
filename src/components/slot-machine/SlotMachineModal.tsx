@@ -95,20 +95,20 @@ function ReelColumn({
               key={`${reel!.title}-${reel!.detail}`}
               initial={reduced ? false : { y: 18, opacity: 0 }}
               animate={
-                reduced 
-                  ? { y: 0, opacity: 1 } 
-                  : { 
-                      y: phase === "spinning" ? [-8, 8, -8, 8, 0] : 0, 
-                      opacity: phase === "spinning" ? 0.5 : 1 
-                    }
+                reduced
+                  ? { y: 0, opacity: 1 }
+                  : {
+                    y: phase === "spinning" ? [-8, 8, -8, 8, 0] : 0,
+                    opacity: phase === "spinning" ? 0.5 : 1
+                  }
               }
               exit={reduced ? undefined : { y: -12, opacity: 0 }}
               transition={
                 reduced
                   ? { duration: 0 }
                   : phase === "spinning"
-                  ? { duration: 0.2, repeat: Infinity }
-                  : { type: "spring", stiffness: 380, damping: 28, delay: index * 0.05 }
+                    ? { duration: 0.2, repeat: Infinity }
+                    : { type: "spring", stiffness: 380, damping: 28, delay: index * 0.05 }
               }
             >
               <div className="font-mono text-xs font-bold uppercase tracking-wide text-ship">
@@ -157,10 +157,13 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
   const spinTimer = useRef<number | null>(null);
 
   const currentGithubCandidate = githubCandidates.length > 0 ? githubCandidates[dealIndex % githubCandidates.length] : null;
-  const currentLlmIdeas = llmIdeas.length >= 2 ? [
-    llmIdeas[dealIndex % llmIdeas.length],
-    llmIdeas[(dealIndex + 1) % llmIdeas.length]
-  ] : null;
+  const currentLlmIdeas = useMemo(() => {
+    if (llmIdeas.length < 2) return null;
+    return [
+      llmIdeas[dealIndex % llmIdeas.length],
+      llmIdeas[(dealIndex + 1) % llmIdeas.length]
+    ];
+  }, [llmIdeas, dealIndex]);
 
   const reels = useMemo(() => {
     const base = [...MOCK_DEALS[dealIndex % MOCK_DEALS.length]];

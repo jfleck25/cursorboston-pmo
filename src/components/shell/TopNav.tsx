@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 import type { Session } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { MotionToggle } from "./MotionToggle";
@@ -28,7 +27,7 @@ export function TopNav({
 
         <div className="flex items-center gap-3 md:gap-4 flex-1 justify-end">
           <CountdownTimer />
-          
+
           <MotionToggle />
 
           {session?.user ? (
