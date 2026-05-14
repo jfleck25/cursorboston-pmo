@@ -95,10 +95,9 @@ export async function fetchQuickWinGithubIssues(): Promise<{
   const octokit = createInstallationOctokit();
   const allowlist = parseGithubRepoAllowlist(process.env.GITHUB_APP_REPO_ALLOWLIST);
   if (!octokit || allowlist.length === 0) {
-    return { configured: false, issues: [], partialErrors: [] };
+    return { configured: false, label, issues: [], partialErrors: [] };
   }
 
-  const label = issueLabel();
   const partialErrors: string[] = [];
 
   const settled = await Promise.allSettled(
