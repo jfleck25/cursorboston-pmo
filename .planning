@@ -25,19 +25,19 @@ todos:
     status: completed
   - id: slot-orchestration-idempotency
     content: "Prefetch on modal open; Promise.allSettled for GitHub+LLM; per-reel failure UX; save spun task with client idempotency key (crypto.randomUUID)"
-    status: pending
+    status: completed
   - id: ship-transactional-flow
     content: "Single server action/transaction: mark shipped + shippedAt + streak rules + optional ShipEvent; confetti only on success; optimistic UI with rollback + toast"
-    status: pending
+    status: completed
   - id: phase4-discord-friday
     content: "Webhook utility (secret rotation); Roll + Ship embeds; Friday dashboard masonry + persisted votes + cohort timezone for week boundaries; no reaction reads without bot"
-    status: pending
+    status: completed
   - id: crosscutting-obs-realtime
     content: "Structured logging for actions; optional Supabase Realtime or short polling for board/radar freshness"
-    status: pending
+    status: completed
   - id: deploy-env-docs
     content: "Vercel deploy; env matrix (DATABASE_URL, GITHUB_APP_* , UPSTASH_*, AI keys, DISCORD_WEBHOOK_*); fix .cursorrules filename typo for agents"
-    status: pending
+    status: completed
 isProject: false
 ---
 
@@ -94,6 +94,15 @@ flowchart LR
 
 ## Progress log (maintained)
 
+**2026-05-14 — Plan completion: slot save, transactional ship, Discord, Friday, observability**
+
+- **Slot orchestration:** `prefetchSlotBundle` server action wraps GitHub + LLM prefetches in `Promise.allSettled`. Slot modal uses client `Promise.allSettled` with arm delay; per-reel **Retry**; **Save to board** calls `saveSpunTask` with `crypto.randomUUID()` idempotency key (Prisma unique → idempotent success on double-submit).
+- **Ship flow:** `shipTask` Prisma transaction sets `shipped` + `shippedAt`, applies **cohort-timezone** weekday streak rules from `ShipEvent` history (`src/lib/streak-ship.ts`), inserts `ShipEvent`, updates user streak fields. Client **optimistic** column move + inline error on failure; **motion burst** “confetti” on success (reduced-motion skips burst).
+- **Discord:** `src/lib/discord-webhook.ts` posts roll (task accept) + ship embeds; env `DISCORD_WEBHOOK_ROLL_URL` / `DISCORD_WEBHOOK_SHIP_URL`; failures logged without rolling back ship.
+- **Friday Launch:** `/friday` masonry grid + `toggleVote` (Upstash vote rate limit in prod); `getFridayLaunch` loads active-week shipped tasks with vote counts.
+- **Cross-cutting:** `logServerEvent` JSON lines for ship/save/vote/discord; `DashboardRefresh` polls `router.refresh()` every 30s on the home board.
+- **Agent / deploy docs:** `.cursor/rules/momentum.mdc` mirrors `.cursorrules` for Cursor Rules; `.env.example` extended with Discord + `NEXT_PUBLIC_APP_URL` + smoke checklist. Vitest covers `streak-calendar` prev-eligible helper.
+
 **2026-05-14 — Slot LLM: generateObject + Upstash + audit log**
 
 - **Server-only:** `invokeSlotLlmIdeas` in `src/lib/llm-slot-spin.ts` — Vercel AI SDK `generateObject` with Zod (`slotIdeasSchema`: exactly three ideas × title / oneLiner / suggestedScope), `maxRetries: 0`, **5s** `AbortController` timeout.
@@ -126,7 +135,7 @@ flowchart LR
 - **UI shell:** Dark `#0F1115`-aligned surface, nav with profile + streak readout, floating **Pull the Lever** CTA, **slot modal placeholder** (real reels + data in Phase 2). **`prefers-reduced-motion`** plus in-app **Reduce motion** toggle (localStorage).
 - **Friction we hit (resolved):** invalid `DATABASE_URL` protocol; missing tables until `db push`; Auth `MissingSecret`; Framer `motion.button` + invalid `pointerEvents` prop (use Tailwind `pointer-events-auto`). Windows `EPERM` during npm/prisma generate may require closing dev server before `prisma generate`.
 - **Verified:** GitHub login works; home shows **Cursor Boston Cohort** and **Week 1 — Foundation** after seed.
-- **Not done yet (by design):** `ShipEvent` model (optional in plan) not added—defer until ship transaction + Discord. **GitHub App** for issue listing is Phase 3; Phase 1 uses **OAuth App** for sign-in only.
+- **ShipEvent:** added with transactional `shipTask` (Phase 3–4). **GitHub App** for issue listing is Phase 3; Phase 1 uses **OAuth App** for sign-in only.
 
 ## Phase 1: Foundation, auth, and data model (expanded)
 
@@ -154,7 +163,7 @@ flowchart LR
 
 - Ship **`shippedAt`**, **GitHub identity columns**, **Week**, **idempotency**, **streak fields**, and **LLM log table** in **Phase 1** so Phases 3–4 avoid painful migrations.
 
-**Phase 1 — codebase status (2026-05-14):** Items **1.1–1.3** implemented; **1.4** schema fields and tables landed (`Task` with GitHub columns, `idempotencyKey`, `Vote`, `LlmInvocationLog`; `User` streak fields). **Slot modal** is a wired placeholder, not the full three-reel machine. **`ShipEvent`:** not in schema yet (add with transactional ship in Phase 3–4 if desired).
+**Phase 1 — codebase status (2026-05-14):** Items **1.1–1.3** implemented; **1.4** schema fields and tables landed (`Task` with GitHub columns, `idempotencyKey`, `Vote`, `LlmInvocationLog`, `ShipEvent`; `User` streak fields). **Slot modal** is wired with prefetch, allSettled orchestration, per-reel retry, and idempotent save.
 
 ## Phase 2: Core views (build for real use, fast turnaround)
 

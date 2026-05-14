@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { Session } from "next-auth";
 import { signIn, signOut } from "@/auth";
 import { MotionToggle } from "./MotionToggle";
@@ -28,6 +29,20 @@ export function TopNav({
           <span className="hidden text-ink-muted sm:inline font-sans text-sm">
             Shipping Engine
           </span>
+          <nav className="ml-2 hidden items-center gap-2 border-l border-surface-border pl-3 sm:flex">
+            <Link
+              href="/"
+              className="font-mono text-[11px] font-bold uppercase tracking-wide text-ink-muted transition hover:text-focus"
+            >
+              Board
+            </Link>
+            <Link
+              href="/friday"
+              className="font-mono text-[11px] font-bold uppercase tracking-wide text-ink-muted transition hover:text-ship"
+            >
+              Friday
+            </Link>
+          </nav>
         </div>
 
         <div className="flex items-center gap-3 md:gap-4">

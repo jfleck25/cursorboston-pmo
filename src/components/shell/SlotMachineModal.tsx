@@ -2,9 +2,13 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { prefetchSlotBundle } from "@/actions/prefetch-slot-bundle";
 import { prefetchGithubQuickWins } from "@/actions/github-quick-wins";
 import { prefetchSlotLlmIdeas } from "@/actions/slot-llm";
+import { saveSpunTask } from "@/actions/save-spun-task";
 import { useMotionPreference } from "@/components/providers/MotionPreferenceProvider";
+import type { GithubIssueCandidate } from "@/lib/github-app-types";
+import type { SlotIdea } from "@/lib/llm-slot-schema";
 
 type SlotModalProps = {
   open: boolean;
@@ -40,12 +44,16 @@ function ReelColumn({
   busy,
   index,
   reduced,
+  errorHint,
+  onRetry,
 }: {
   label: string;
   reel: Reel | null;
   busy: boolean;
   index: number;
   reduced: boolean;
+  errorHint?: string | null;
+  onRetry?: () => void;
 }) {
   const showContent = Boolean(reel) && !busy;
 
@@ -98,6 +106,20 @@ function ReelColumn({
             </motion.div>
           )}
         </AnimatePresence>
+        {errorHint ? (
+          <div className="mt-2 space-y-1 border-t border-danger/30 pt-2">
+            <p className="font-mono text-[10px] leading-snug text-danger">{errorHint}</p>
+            {onRetry ? (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="rounded border border-focus/50 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide text-focus hover:bg-focus/10"
+              >
+                Retry reel
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -112,10 +134,16 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
   const { decorativeMotionDisabled } = useMotionPreference();
   const [phase, setPhase] = useState<"empty" | "loading" | "ready" | "spinning">("empty");
   const [dealIndex, setDealIndex] = useState(0);
+  const [githubCandidate, setGithubCandidate] = useState<GithubIssueCandidate | null>(null);
+  const [llmIdeas, setLlmIdeas] = useState<SlotIdea[] | null>(null);
   const [githubSourceReel, setGithubSourceReel] = useState<Reel | null>(null);
   const [llmMidReel, setLlmMidReel] = useState<Reel | null>(null);
   const [llmOutReel, setLlmOutReel] = useState<Reel | null>(null);
+  const [githubError, setGithubError] = useState<string | null>(null);
+  const [llmError, setLlmError] = useState<string | null>(null);
   const [footerHint, setFooterHint] = useState<string | null>(null);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [saveHint, setSaveHint] = useState<string | null>(null);
   const spinTimer = useRef<number | null>(null);
 
   const reels = useMemo(() => {
@@ -132,7 +160,12 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
       setGithubSourceReel(null);
       setLlmMidReel(null);
       setLlmOutReel(null);
+      setGithubCandidate(null);
+      setLlmIdeas(null);
+      setGithubError(null);
+      setLlmError(null);
       setFooterHint(null);
+      setSaveHint(null);
       return;
     }
 
@@ -140,7 +173,12 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
     setGithubSourceReel(null);
     setLlmMidReel(null);
     setLlmOutReel(null);
+    setGithubCandidate(null);
+    setLlmIdeas(null);
+    setGithubError(null);
+    setLlmError(null);
     setFooterHint(null);
+    setSaveHint(null);
 
     const minDelay = decorativeMotionDisabled ? 0 : 900;
     const delayP = new Promise<void>((resolve) => {
@@ -149,23 +187,24 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
 
     let cancelled = false;
     void (async () => {
-      const [, gh, llm] = await Promise.all([
-        delayP,
-        prefetchGithubQuickWins(),
-        prefetchSlotLlmIdeas(),
-      ]);
+      const settled = await Promise.allSettled([delayP, prefetchSlotBundle()]);
       if (cancelled) return;
+      if (settled[1].status === "rejected") {
+        setGithubError("Prefetch failed.");
+        setLlmError("Prefetch failed.");
+        setPhase("ready");
+        return;
+      }
+      const bundle = settled[1].value;
+      const { github: gh, llm } = bundle;
 
-      const hints: string[] = [];
       if (!gh.ok) {
-        hints.push(`GitHub: ${gh.error}`);
-      } else if (
-        gh.ok &&
-        "configured" in gh &&
-        gh.configured &&
-        gh.candidates.length > 0
-      ) {
+        setGithubError(gh.error);
+      } else if (gh.ok && "anonymous" in gh && gh.anonymous) {
+        /* skip */
+      } else if (gh.ok && "configured" in gh && gh.configured && gh.candidates.length > 0) {
         const c = gh.candidates[0];
+        setGithubCandidate(c);
         setGithubSourceReel({
           title: truncateReelTitle(c.title),
           detail: `${c.githubOwner}/${c.githubRepo}#${c.githubIssueNumber} · quick-win`,
@@ -173,7 +212,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
       }
 
       if (llm.ok === false) {
-        hints.push(`AI: ${llm.error}`);
+        setLlmError(llm.error);
       } else if (
         llm.ok &&
         !("anonymous" in llm && llm.anonymous) &&
@@ -182,6 +221,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
         "ideas" in llm &&
         llm.ideas.length >= 2
       ) {
+        setLlmIdeas(llm.ideas);
         setLlmMidReel({
           title: truncateReelTitle(llm.ideas[0].title),
           detail: llm.ideas[0].suggestedScope,
@@ -192,6 +232,9 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
         });
       }
 
+      const hints: string[] = [];
+      if (!gh.ok) hints.push(`GitHub: ${gh.error}`);
+      if (llm.ok === false) hints.push(`AI: ${llm.error}`);
       setFooterHint(hints.length ? hints.join(" · ") : null);
 
       setPhase("ready");
@@ -220,6 +263,108 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
       setPhase("ready");
       spinTimer.current = null;
     }, delay);
+  };
+
+  const canSave = Boolean(githubCandidate || (llmIdeas && llmIdeas.length >= 2));
+
+  const save = async () => {
+    if (!canSave || saveBusy) return;
+    setSaveBusy(true);
+    setSaveHint(null);
+    const idempotencyKey = crypto.randomUUID();
+    try {
+      if (githubCandidate) {
+        const g = githubCandidate;
+        const res = await saveSpunTask({
+          source: "github",
+          idempotencyKey,
+          github: {
+            githubOwner: g.githubOwner,
+            githubRepo: g.githubRepo,
+            githubIssueNumber: g.githubIssueNumber,
+            githubNodeId: g.githubNodeId,
+            githubHtmlUrl: g.githubHtmlUrl,
+            title: g.title,
+            description: g.description,
+          },
+        });
+        if (!res.ok) {
+          setSaveHint(res.error);
+        } else {
+          setSaveHint(res.deduped ? "Already saved (duplicate idempotency key)." : "Saved to board.");
+        }
+      } else if (llmIdeas && llmIdeas.length >= 2) {
+        const res = await saveSpunTask({
+          source: "ai",
+          idempotencyKey,
+          ai: {
+            title: `${llmIdeas[0].title} — ${llmIdeas[1].title}`,
+            description: `${llmIdeas[0].oneLiner}\n\n${llmIdeas[1].suggestedScope}`,
+          },
+        });
+        if (!res.ok) {
+          setSaveHint(res.error);
+        } else {
+          setSaveHint(res.deduped ? "Already saved (duplicate idempotency key)." : "Saved to board.");
+        }
+      }
+    } finally {
+      setSaveBusy(false);
+    }
+  };
+
+  const retryGithub = () => {
+    setGithubError(null);
+    void (async () => {
+      const gh = await prefetchGithubQuickWins();
+      if (!gh.ok) {
+        setGithubError(gh.error);
+        setGithubCandidate(null);
+        setGithubSourceReel(null);
+        return;
+      }
+      if (gh.ok && "anonymous" in gh && gh.anonymous) return;
+      if (gh.ok && "configured" in gh && gh.configured && gh.candidates.length > 0) {
+        const c = gh.candidates[0];
+        setGithubCandidate(c);
+        setGithubSourceReel({
+          title: truncateReelTitle(c.title),
+          detail: `${c.githubOwner}/${c.githubRepo}#${c.githubIssueNumber} · quick-win`,
+        });
+      }
+    })();
+  };
+
+  const retryLlm = () => {
+    setLlmError(null);
+    void (async () => {
+      const llm = await prefetchSlotLlmIdeas();
+      if (llm.ok === false) {
+        setLlmError(llm.error);
+        setLlmIdeas(null);
+        setLlmMidReel(null);
+        setLlmOutReel(null);
+        return;
+      }
+      if (
+        llm.ok &&
+        !("anonymous" in llm && llm.anonymous) &&
+        "configured" in llm &&
+        llm.configured &&
+        "ideas" in llm &&
+        llm.ideas.length >= 2
+      ) {
+        setLlmIdeas(llm.ideas);
+        setLlmMidReel({
+          title: truncateReelTitle(llm.ideas[0].title),
+          detail: llm.ideas[0].suggestedScope,
+        });
+        setLlmOutReel({
+          title: truncateReelTitle(llm.ideas[1].title),
+          detail: llm.ideas[1].oneLiner,
+        });
+      }
+    })();
   };
 
   return (
@@ -252,7 +397,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
               }
             >
               <div className="mb-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-focus">
-                Phase 2 · Intake
+                Phase 3 · Intake
               </div>
               <h2
                 id="slot-modal-title"
@@ -261,10 +406,10 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                 Slot machine
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-                Three reels: source, scope, output. After sign-in, Source can load from a GitHub App
-                (allowlisted <span className="font-mono text-github">quick-win</span> issues) and
-                Tech / Output from OpenAI via <span className="font-mono text-ai">generateObject</span>{" "}
-                (rate-limited). Task save + idempotency land in the next plan step.
+                Three reels: source, scope, output. Prefetch uses{" "}
+                <span className="font-mono text-focus">Promise.allSettled</span> so GitHub and AI
+                can fail independently. Save uses a client{" "}
+                <span className="font-mono text-ai">crypto.randomUUID()</span> idempotency key.
               </p>
 
               <div className="mt-6 grid gap-3 md:grid-cols-3">
@@ -274,6 +419,8 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                   busy={busy}
                   index={0}
                   reduced={decorativeMotionDisabled}
+                  errorHint={githubError}
+                  onRetry={githubError ? retryGithub : undefined}
                 />
                 <ReelColumn
                   label="Tech / scope"
@@ -281,6 +428,8 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                   busy={busy}
                   index={1}
                   reduced={decorativeMotionDisabled}
+                  errorHint={llmError}
+                  onRetry={llmError ? retryLlm : undefined}
                 />
                 <ReelColumn
                   label="Output"
@@ -288,29 +437,37 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                   busy={busy}
                   index={2}
                   reduced={decorativeMotionDisabled}
+                  errorHint={llmError}
+                  onRetry={llmError ? retryLlm : undefined}
                 />
               </div>
 
               <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-ink-muted">
-                  {footerHint
-                    ? footerHint
-                    : phase === "loading"
-                      ? "Prefetching GitHub + AI (install token + generateObject) + minimum arm delay…"
-                      : phase === "ready"
-                        ? githubSourceReel || llmMidReel
-                          ? `Armed: ${[
-                              githubSourceReel ? "GitHub source" : null,
-                              llmMidReel ? "AI reels" : null,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}. Spin still rotates any reel still on mock data.`
-                          : "Reels armed on mock combos until GitHub App, OpenAI, and Upstash env are set (see .env.example)."
-                        : phase === "spinning"
-                          ? "Shuffling…"
-                          : "Arming reels…"}
+                <p className="max-w-xl text-xs text-ink-muted">
+                  {saveHint ? (
+                    <span className="text-ship">{saveHint}</span>
+                  ) : footerHint ? (
+                    footerHint
+                  ) : phase === "loading" ? (
+                    "Prefetching GitHub + AI (allSettled bundle) + minimum arm delay…"
+                  ) : phase === "ready" ? (
+                    githubSourceReel || llmMidReel ? (
+                      `Armed: ${[
+                        githubSourceReel ? "GitHub source" : null,
+                        llmMidReel ? "AI reels" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}. Spin reshuffles mock stripes on any reel still on demo data.`
+                    ) : (
+                      "Reels armed on mock combos until GitHub App + OpenAI + Upstash env are set (see .env.example)."
+                    )
+                  ) : phase === "spinning" ? (
+                    "Shuffling…"
+                  ) : (
+                    "Arming reels…"
+                  )}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={onClose}
@@ -330,6 +487,17 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                     }
                   >
                     Spin
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={() => void save()}
+                    disabled={!canSave || saveBusy || phase !== "ready"}
+                    className="rounded border-2 border-focus bg-focus/15 px-5 py-2 font-mono text-xs font-bold uppercase tracking-[0.1em] text-focus transition enabled:hover:bg-focus/25 disabled:cursor-not-allowed disabled:opacity-40"
+                    whileTap={
+                      decorativeMotionDisabled || !canSave ? undefined : { scale: 0.97 }
+                    }
+                  >
+                    {saveBusy ? "Saving…" : "Save to board"}
                   </motion.button>
                 </div>
               </div>

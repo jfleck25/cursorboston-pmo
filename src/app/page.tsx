@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCohortDashboard } from "@/lib/cohort-dashboard";
 import { AssemblyLine } from "@/components/phase2/AssemblyLine";
 import { CommandCenter } from "@/components/phase2/CommandCenter";
+import { DashboardRefresh } from "@/components/shell/DashboardRefresh";
 
 export default async function HomePage() {
   const session = await auth();
@@ -74,6 +75,8 @@ export default async function HomePage() {
                 </div>
               </section>
 
+              <DashboardRefresh />
+
               <CommandCenter
                 activeWeek={dashboard.activeWeek}
                 tasks={dashboard.tasks}
@@ -83,7 +86,7 @@ export default async function HomePage() {
                 weekShippedCount={dashboard.weekShippedCount}
               />
 
-              <AssemblyLine tasks={dashboard.tasks} />
+              <AssemblyLine tasks={dashboard.tasks} viewerUserId={session.user.id} />
             </>
           ) : (
             <section className="grid gap-4 rounded border border-surface-border bg-surface-raised/60 p-5 md:grid-cols-2">

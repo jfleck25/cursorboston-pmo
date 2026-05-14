@@ -67,6 +67,7 @@ model User {
   tasksAssigned Task[]             @relation("TaskAssignee")
   votes         Vote[]
   llmLogs       LlmInvocationLog[]
+  shipEvents    ShipEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -97,13 +98,27 @@ model Task {
   metadata       Json?
   idempotencyKey String? @unique
 
-  votes Vote[]
+  votes      Vote[]
+  shipEvents ShipEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([cohortId, status])
   @@index([weekId])
+}
+
+model ShipEvent {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shippedAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([taskId])
 }
 
 model LlmInvocationLog {

@@ -4,8 +4,10 @@ import type { TaskStatus } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useCallback, useMemo, useState } from "react";
 import { useMotionPreference } from "@/components/providers/MotionPreferenceProvider";
 import type { DashboardTask } from "@/lib/cohort-dashboard";
+import { TaskShipButton } from "./TaskShipButton";
 
 const ZONES: { status: TaskStatus; label: string; blurb: string }[] = [
   { status: "incoming", label: "Incoming", blurb: "Fresh intake" },
@@ -13,7 +15,17 @@ const ZONES: { status: TaskStatus; label: string; blurb: string }[] = [
   { status: "shipped", label: "Shipped", blurb: "Cohort wins" },
 ];
 
-function TaskCard({ task }: { task: DashboardTask }) {
+function TaskCard({
+  task,
+  viewerUserId,
+  onOptimisticShip,
+  onRollbackShip,
+}: {
+  task: DashboardTask;
+  viewerUserId: string | null;
+  onOptimisticShip: (id: string) => void;
+  onRollbackShip: (id: string) => void;
+}) {
   const accent =
     task.source === "github"
       ? "border-github/50 shadow-[0_0_0_1px_rgba(163,113,247,0.2)]"
@@ -78,14 +90,48 @@ function TaskCard({ task }: { task: DashboardTask }) {
           </span>
         ) : null}
       </div>
+      <TaskShipButton
+        taskId={task.id}
+        status={task.status}
+        viewerUserId={viewerUserId}
+        onOptimisticShip={onOptimisticShip}
+        onRollbackShip={onRollbackShip}
+      />
     </article>
   );
 }
 
-export function AssemblyLine({ tasks }: { tasks: DashboardTask[] }) {
+export function AssemblyLine({
+  tasks,
+  viewerUserId,
+}: {
+  tasks: DashboardTask[];
+  viewerUserId: string | null;
+}) {
   const { decorativeMotionDisabled } = useMotionPreference();
+  const [optimistic, setOptimistic] = useState<Record<string, TaskStatus>>({});
 
-  const byStatus = (s: TaskStatus) => tasks.filter((t) => t.status === s);
+  const merged = useMemo(() => {
+    return tasks.map((t) => {
+      const s = optimistic[t.id];
+      if (!s) return t;
+      return { ...t, status: s, shippedAt: s === "shipped" ? new Date().toISOString() : t.shippedAt };
+    });
+  }, [tasks, optimistic]);
+
+  const onOptimisticShip = useCallback((id: string) => {
+    setOptimistic((m) => ({ ...m, [id]: "shipped" }));
+  }, []);
+
+  const onRollbackShip = useCallback((id: string) => {
+    setOptimistic((m) => {
+      const next = { ...m };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
+  const byStatus = (s: TaskStatus) => merged.filter((t) => t.status === s);
 
   return (
     <section className="space-y-4">
@@ -134,12 +180,20 @@ export function AssemblyLine({ tasks }: { tasks: DashboardTask[] }) {
                         Empty lane
                       </p>
                       <p className="mt-2 text-xs leading-relaxed text-ink-muted">
-                        Nothing in this column yet. Slot new work or move cards when ship
-                        actions land.
+                        Nothing in this column yet. Pull the lever to slot new work, or ship cards
+                        from Incoming / In the Works.
                       </p>
                     </div>
                   ) : (
-                    list.map((task) => <TaskCard key={task.id} task={task} />)
+                    list.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        viewerUserId={viewerUserId}
+                        onOptimisticShip={onOptimisticShip}
+                        onRollbackShip={onRollbackShip}
+                      />
+                    ))
                   )}
                 </div>
               </motion.div>
