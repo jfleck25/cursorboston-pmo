@@ -1,19 +1,19 @@
 ---
 name: Momentum Shipping Plan
-overview: End-to-end plan to ship Momentum (single-cohort, week-sectioned, arcade-style PM) on Next.js App Router with Prisma, GitHub App auth, hardened LLM spins, transactional ship flow, Discord webhooks, and Friday launch—aligned to design philosophy and fast Phase 2 delivery.
+overview: End-to-end plan to ship Momentum (single-cohort, week-sectioned, arcade-style PM) on Next.js App Router with Prisma, GitHub OAuth (Phase 1 identity) and GitHub App (Phase 3 issues), hardened LLM spins, transactional ship flow, Discord webhooks, and Friday launch—aligned to design philosophy and fast Phase 2 delivery.
 todos:
   - id: foundation-auth-db
     content: "Bootstrap Next.js (App Router), Tailwind, Prisma, DB (Postgres/Supabase); add cohort auth (magic link or GitHub OAuth); single-cohort + Week model in schema from day one"
-    status: pending
+    status: completed
   - id: design-tokens-layout
     content: "Add semantic color tokens (ship, focus, github, ai, danger); global dark shell, nav, lever; defer fine-grained visual polish until external design is ready"
-    status: pending
+    status: completed
   - id: schema-task-github-ship
     content: "Tasks cohort-visible with GitHub identity (owner, repo, issueNumber, nodeId, htmlUrl), shippedAt, weekId, metadata JSON; SpinIdempotencyKey unique index"
-    status: pending
+    status: completed
   - id: schema-streak-votes-logs
     content: "User streak fields + ship audit; Vote model for Friday upvotes; LlmInvocationLog (promptVersionHash, userId, outcome, latencyMs)"
-    status: pending
+    status: completed
   - id: phase2-assembly-radar-slot
     content: "Ship Assembly Line, Command Center (fuel + radar), Slot modal with loading/empty states; prefers-reduced-motion + in-app reduced-motion toggle"
     status: pending
@@ -92,6 +92,18 @@ flowchart LR
   ShipFlow --> Discord
 ```
 
+## Progress log (maintained)
+
+**2026-05-14 — Phase 1 foundation in repo; app smoke-tested**
+
+- **Stack:** Next.js 15 (App Router), TypeScript, Tailwind, Framer Motion, Prisma + PostgreSQL, Auth.js v5 with **GitHub OAuth** (user identity + Prisma adapter). Next pinned to a patched 15.3.x line for RSC advisory.
+- **Database:** Schema applied with `npx prisma db push` on a new empty DB (e.g. Vercel/Prisma Postgres). Seed creates cohort **`cursor-boston`** (timezone `America/Chicago`) and an **active week** titled *Week 1 — Foundation*. New users are attached to the first cohort on `createUser`.
+- **Env (documented in `.env.example`):** `DATABASE_URL` must be `postgresql://` or `postgres://`; `AUTH_SECRET` (or `NEXTAUTH_SECRET`); `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`. Dev allows a temporary `AUTH_SECRET` placeholder with a console warning.
+- **UI shell:** Dark `#0F1115`-aligned surface, nav with profile + streak readout, floating **Pull the Lever** CTA, **slot modal placeholder** (real reels + data in Phase 2). **`prefers-reduced-motion`** plus in-app **Reduce motion** toggle (localStorage).
+- **Friction we hit (resolved):** invalid `DATABASE_URL` protocol; missing tables until `db push`; Auth `MissingSecret`; Framer `motion.button` + invalid `pointerEvents` prop (use Tailwind `pointer-events-auto`). Windows `EPERM` during npm/prisma generate may require closing dev server before `prisma generate`.
+- **Verified:** GitHub login works; home shows **Cursor Boston Cohort** and **Week 1 — Foundation** after seed.
+- **Not done yet (by design):** `ShipEvent` model (optional in plan) not added—defer until ship transaction + Discord. **GitHub App** for issue listing is Phase 3; Phase 1 uses **OAuth App** for sign-in only.
+
 ## Phase 1: Foundation, auth, and data model (expanded)
 
 **1.1 Project bootstrap**
@@ -117,6 +129,8 @@ flowchart LR
 **1.4 Sequencing tweak (locked in)**
 
 - Ship **`shippedAt`**, **GitHub identity columns**, **Week**, **idempotency**, **streak fields**, and **LLM log table** in **Phase 1** so Phases 3–4 avoid painful migrations.
+
+**Phase 1 — codebase status (2026-05-14):** Items **1.1–1.3** implemented; **1.4** schema fields and tables landed (`Task` with GitHub columns, `idempotencyKey`, `Vote`, `LlmInvocationLog`; `User` streak fields). **Slot modal** is a wired placeholder, not the full three-reel machine. **`ShipEvent`:** not in schema yet (add with transactional ship in Phase 3–4 if desired).
 
 ## Phase 2: Core views (build for real use, fast turnaround)
 
