@@ -16,139 +16,19 @@ type SlotModalProps = {
   onClose: () => void;
 };
 
-type Reel = {
-  title: string;
-  detail: string;
-};
+type SlotCandidate = 
+  | { type: "github"; data: GithubIssueCandidate }
+  | { type: "ai"; data: SlotIdea };
 
-const MOCK_DEALS: Reel[][] = [
-  [
-    { title: "GitHub", detail: "labeled quick-win" },
-    { title: "Thin slice", detail: "one vertical" },
-    { title: "Demo-ready", detail: "video + README" },
-  ],
-  [
-    { title: "AI", detail: "cohort-shaped idea" },
-    { title: "Polish pass", detail: "motion + a11y" },
-    { title: "Friday-safe", detail: "shippable today" },
-  ],
-  [
-    { title: "GitHub", detail: "docs gap" },
-    { title: "Tooling", detail: "DX win" },
-    { title: "Visible", detail: "Discord-worthy" },
-  ],
-];
 
-function ReelColumn({
-  label,
-  reel,
-  busy,
-  index,
-  reduced,
-  errorHint,
-  onRetry,
-  phase,
-}: {
-  label: string;
-  reel: Reel | null;
-  busy: boolean;
-  index: number;
-  reduced: boolean;
-  errorHint?: string | null;
-  onRetry?: () => void;
-  phase?: string;
-}) {
-  const showContent = Boolean(reel) && !busy;
 
-  return (
-    <div className="flex min-w-0 flex-1 flex-col gap-2">
-      <div className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-focus/90">
-        {label}
-      </div>
-      <div className="relative min-h-[112px] overflow-hidden rounded border border-surface-border bg-surface/80 px-2 py-4 text-center shadow-[inset_0_0_24px_rgba(0,240,255,0.06)]">
-        <AnimatePresence mode="wait">
-          {!showContent ? (
-            <motion.div
-              key="skeleton"
-              initial={reduced ? false : { opacity: 0.45 }}
-              animate={
-                reduced
-                  ? { opacity: 0.55 }
-                  : { opacity: busy ? [0.35, 0.9, 0.35] : 0.5 }
-              }
-              exit={{ opacity: 0 }}
-              transition={
-                reduced
-                  ? { duration: 0 }
-                  : { duration: busy ? 0.85 : 0.2, repeat: busy ? Infinity : 0 }
-              }
-              className="space-y-2"
-            >
-              <div className="mx-auto h-3 w-3/4 rounded bg-surface-muted" />
-              <div className="mx-auto h-3 w-1/2 rounded bg-surface-muted/80" />
-              <p className="pt-2 font-mono text-[10px] uppercase tracking-wide text-ink-muted">
-                {busy ? "Loading reel…" : "Waiting for prefetch"}
-              </p>
-            </motion.div>
-          ) : (
-            <motion.div
-              key={`${reel!.title}-${reel!.detail}`}
-              initial={reduced ? false : { y: 18, opacity: 0 }}
-              animate={
-                reduced
-                  ? { y: 0, opacity: 1 }
-                  : {
-                    y: phase === "spinning" ? [-8, 8, -8, 8, 0] : 0,
-                    opacity: phase === "spinning" ? 0.5 : 1
-                  }
-              }
-              exit={reduced ? undefined : { y: -12, opacity: 0 }}
-              transition={
-                reduced
-                  ? { duration: 0 }
-                  : phase === "spinning"
-                    ? { duration: 0.2, repeat: Infinity }
-                    : { type: "spring", stiffness: 380, damping: 28, delay: index * 0.05 }
-              }
-            >
-              <div className="font-mono text-xs font-bold uppercase tracking-wide text-ship">
-                {reel!.title}
-              </div>
-              <div className="mt-2 text-[11px] leading-snug text-ink-muted">{reel!.detail}</div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        {errorHint ? (
-          <div className="mt-2 space-y-1 border-t border-danger/30 pt-2">
-            <p className="font-mono text-[10px] leading-snug text-danger">{errorHint}</p>
-            {onRetry ? (
-              <button
-                type="button"
-                onClick={onRetry}
-                className="rounded border border-focus/50 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide text-focus hover:bg-focus/10"
-              >
-                Retry reel
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function truncateReelTitle(title: string, max = 72): string {
-  if (title.length <= max) return title;
-  return `${title.slice(0, max - 1)}…`;
-}
 
 export function SlotMachineModal({ open, onClose }: SlotModalProps) {
   const router = useRouter();
   const { decorativeMotionDisabled } = useMotionPreference();
   const [phase, setPhase] = useState<"empty" | "loading" | "ready" | "spinning">("empty");
   const [dealIndex, setDealIndex] = useState(0);
-  const [githubCandidates, setGithubCandidates] = useState<GithubIssueCandidate[]>([]);
-  const [llmIdeas, setLlmIdeas] = useState<SlotIdea[]>([]);
+  const [candidates, setCandidates] = useState<SlotCandidate[]>([]);
   const [githubError, setGithubError] = useState<string | null>(null);
   const [llmError, setLlmError] = useState<string | null>(null);
   const [footerHint, setFooterHint] = useState<string | null>(null);
@@ -156,41 +36,14 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
   const [saveHint, setSaveHint] = useState<string | null>(null);
   const spinTimer = useRef<number | null>(null);
 
-  const currentGithubCandidate = githubCandidates.length > 0 ? githubCandidates[dealIndex % githubCandidates.length] : null;
-  const currentLlmIdeas = useMemo(() => {
-    if (llmIdeas.length < 2) return null;
-    return [
-      llmIdeas[dealIndex % llmIdeas.length],
-      llmIdeas[(dealIndex + 1) % llmIdeas.length]
-    ];
-  }, [llmIdeas, dealIndex]);
+  const currentCandidate = candidates.length > 0 ? candidates[dealIndex % candidates.length] : null;
 
-  const reels = useMemo(() => {
-    const base = [...MOCK_DEALS[dealIndex % MOCK_DEALS.length]];
-    if (currentGithubCandidate) {
-      base[0] = {
-        title: truncateReelTitle(currentGithubCandidate.title),
-        detail: `${currentGithubCandidate.githubOwner}/${currentGithubCandidate.githubRepo}#${currentGithubCandidate.githubIssueNumber} · quick-win`,
-      };
-    }
-    if (currentLlmIdeas) {
-      base[1] = {
-        title: truncateReelTitle(currentLlmIdeas[0].title),
-        detail: currentLlmIdeas[0].suggestedScope,
-      };
-      base[2] = {
-        title: truncateReelTitle(currentLlmIdeas[1].title),
-        detail: currentLlmIdeas[1].oneLiner,
-      };
-    }
-    return base;
-  }, [dealIndex, currentGithubCandidate, currentLlmIdeas]);
 
   useLayoutEffect(() => {
     if (!open) {
       setPhase("empty");
-      setGithubCandidates([]);
-      setLlmIdeas([]);
+      setCandidates([]);
+
       setGithubError(null);
       setLlmError(null);
       setFooterHint(null);
@@ -199,8 +52,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
     }
 
     setPhase("loading");
-    setGithubCandidates([]);
-    setLlmIdeas([]);
+    setCandidates([]);
     setGithubError(null);
     setLlmError(null);
     setFooterHint(null);
@@ -224,12 +76,12 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
       const bundle = settled[1].value;
       const { github: gh, llm } = bundle;
 
+      const nextCandidates: SlotCandidate[] = [];
+
       if (!gh.ok) {
         setGithubError(gh.error);
-      } else if (gh.ok && "anonymous" in gh && gh.anonymous) {
-        /* skip */
       } else if (gh.ok && "configured" in gh && gh.configured && gh.candidates.length > 0) {
-        setGithubCandidates(gh.candidates);
+        gh.candidates.forEach(c => nextCandidates.push({ type: "github", data: c }));
       }
 
       if (llm.ok === false) {
@@ -240,10 +92,12 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
         "configured" in llm &&
         llm.configured &&
         "ideas" in llm &&
-        llm.ideas.length >= 2
+        llm.ideas.length > 0
       ) {
-        setLlmIdeas(llm.ideas);
+        llm.ideas.forEach(i => nextCandidates.push({ type: "ai", data: i }));
       }
+
+      setCandidates(nextCandidates);
 
       const hints: string[] = [];
       if (!gh.ok) hints.push(`GitHub: ${gh.error}`);
@@ -252,6 +106,7 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
 
       setPhase("ready");
     })();
+
 
     return () => {
       cancelled = true;
@@ -278,16 +133,16 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
     }, delay);
   };
 
-  const canSave = Boolean(currentGithubCandidate || currentLlmIdeas);
+  const canSave = Boolean(currentCandidate);
 
   const save = async () => {
-    if (!canSave || saveBusy) return;
+    if (!currentCandidate || saveBusy) return;
     setSaveBusy(true);
     setSaveHint(null);
     const idempotencyKey = crypto.randomUUID();
     try {
-      if (currentGithubCandidate) {
-        const g = currentGithubCandidate;
+      if (currentCandidate.type === "github") {
+        const g = currentCandidate.data;
         const res = await saveSpunTask({
           source: "github",
           idempotencyKey,
@@ -304,22 +159,23 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
         if (!res.ok) {
           setSaveHint(res.error);
         } else {
-          setSaveHint(res.deduped ? "Already saved (duplicate idempotency key)." : "Saved to board.");
+          setSaveHint(res.deduped ? "Already saved." : "Saved to board.");
           if (!res.deduped) router.refresh();
         }
-      } else if (currentLlmIdeas) {
+      } else if (currentCandidate.type === "ai") {
+        const i = currentCandidate.data;
         const res = await saveSpunTask({
           source: "ai",
           idempotencyKey,
           ai: {
-            title: `${currentLlmIdeas[0].title} — ${currentLlmIdeas[1].title}`,
-            description: `${currentLlmIdeas[0].oneLiner}\n\n${currentLlmIdeas[1].suggestedScope}`,
+            title: i.title,
+            description: `${i.oneLiner}\n\nScope: ${i.suggestedScope}`,
           },
         });
         if (!res.ok) {
           setSaveHint(res.error);
         } else {
-          setSaveHint(res.deduped ? "Already saved (duplicate idempotency key)." : "Saved to board.");
+          setSaveHint(res.deduped ? "Already saved." : "Saved to board.");
           if (!res.deduped) router.refresh();
         }
       }
@@ -328,17 +184,20 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
     }
   };
 
+
   const retryGithub = () => {
     setGithubError(null);
     void (async () => {
       const gh = await prefetchGithubQuickWins();
       if (!gh.ok) {
         setGithubError(gh.error);
-        setGithubCandidates([]);
         return;
       }
       if (gh.ok && "configured" in gh && gh.configured && gh.candidates.length > 0) {
-        setGithubCandidates(gh.candidates);
+        setCandidates(prev => [
+          ...prev.filter(c => c.type !== "github"),
+          ...gh.candidates.map(c => ({ type: "github" as const, data: c }))
+        ]);
       }
     })();
   };
@@ -349,7 +208,6 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
       const llm = await prefetchSlotLlmIdeas();
       if (llm.ok === false) {
         setLlmError(llm.error);
-        setLlmIdeas([]);
         return;
       }
       if (
@@ -358,12 +216,16 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
         "configured" in llm &&
         llm.configured &&
         "ideas" in llm &&
-        llm.ideas.length >= 2
+        llm.ideas.length > 0
       ) {
-        setLlmIdeas(llm.ideas);
+        setCandidates(prev => [
+          ...prev.filter(c => c.type !== "ai"),
+          ...llm.ideas.map(i => ({ type: "ai" as const, data: i }))
+        ]);
       }
     })();
   };
+
 
   return (
     <AnimatePresence>
@@ -404,88 +266,120 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                 Slot machine
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-                Three reels: source, scope, output. Prefetch uses{" "}
+                One unified window for tasks. Prefetch uses{" "}
                 <span className="font-mono text-focus">Promise.allSettled</span> so GitHub and AI
                 can fail independently. Save uses a client{" "}
                 <span className="font-mono text-ai">crypto.randomUUID()</span> idempotency key.
               </p>
 
-              <div className="mt-6 grid gap-3 md:grid-cols-3 relative">
-                <div className="hidden md:block absolute top-[60%] left-0 right-0 h-px bg-ship/50 z-20 pointer-events-none transform -translate-y-1/2 shadow-[0_0_8px_rgba(0,255,102,0.8)]" />
-                <ReelColumn
-                  label="Source"
-                  reel={reels[0]}
-                  busy={busy}
-                  index={0}
-                  reduced={decorativeMotionDisabled}
-                  errorHint={githubError}
-                  onRetry={githubError ? retryGithub : undefined}
-                  phase={phase}
-                />
-                <ReelColumn
-                  label="Tech / scope"
-                  reel={reels[1]}
-                  busy={busy}
-                  index={1}
-                  reduced={decorativeMotionDisabled}
-                  errorHint={llmError}
-                  onRetry={llmError ? retryLlm : undefined}
-                  phase={phase}
-                />
-                <ReelColumn
-                  label="Output"
-                  reel={reels[2]}
-                  busy={busy}
-                  index={2}
-                  reduced={decorativeMotionDisabled}
-                  errorHint={llmError}
-                  onRetry={llmError ? retryLlm : undefined}
-                  phase={phase}
-                />
+
+              <div className="mt-6">
+                <div className="relative min-h-[220px] overflow-hidden rounded-lg border-2 border-focus/30 bg-surface/90 p-6 shadow-[inset_0_0_40px_rgba(0,240,255,0.08)]">
+                  <AnimatePresence mode="wait">
+                    {phase === "spinning" ? (
+                      <motion.div
+                        key="spinning"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="flex h-full flex-col items-center justify-center space-y-4 py-8"
+                      >
+                        <div className="flex gap-2">
+                          {[0, 1, 2].map((i) => (
+                            <motion.div
+                              key={i}
+                              animate={{
+                                y: [-10, 10, -10],
+                                opacity: [0.3, 1, 0.3],
+                              }}
+                              transition={{
+                                duration: 0.4,
+                                repeat: Infinity,
+                                delay: i * 0.1,
+                              }}
+                              className="h-3 w-3 rounded-full bg-focus"
+                            />
+                          ))}
+                        </div>
+                        <div className="font-mono text-sm font-bold uppercase tracking-widest text-focus/60">
+                          Shuffling Pool...
+                        </div>
+                      </motion.div>
+                    ) : busy ? (
+                      <motion.div
+                        key="loading"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="flex h-full flex-col items-center justify-center space-y-4 py-8 text-center"
+                      >
+                        <div className="h-8 w-48 animate-pulse rounded bg-surface-muted" />
+                        <div className="h-4 w-32 animate-pulse rounded bg-surface-muted/60" />
+                        <p className="font-mono text-[10px] uppercase tracking-wide text-ink-muted">
+                          Arming Reels...
+                        </p>
+                      </motion.div>
+                    ) : currentCandidate ? (
+                      <motion.div
+                        key={currentCandidate.type === "github" ? currentCandidate.data.githubNodeId : currentCandidate.data.title}
+                        initial={decorativeMotionDisabled ? false : { y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                        className="flex h-full flex-col"
+                      >
+                        <div className="mb-4 flex items-center justify-between border-b border-surface-border pb-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`rounded px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${currentCandidate.type === "github" ? "bg-focus/20 text-focus" : "bg-ai/20 text-ai"}`}>
+                              {currentCandidate.type === "github" ? "GitHub" : "AI Idea"}
+                            </div>
+                            {currentCandidate.type === "github" && (
+                              <div className="font-mono text-[10px] text-ink-muted">
+                                {currentCandidate.data.githubOwner}/{currentCandidate.data.githubRepo}#{currentCandidate.data.githubIssueNumber}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <h3 className="font-sans text-lg font-bold leading-tight text-ink md:text-xl">
+                          {currentCandidate.data.title}
+                        </h3>
+
+                        <div className="mt-4 flex-1">
+                          <p className="line-clamp-4 text-sm leading-relaxed text-ink-muted">
+                            {currentCandidate.type === "github" 
+                              ? currentCandidate.data.description || "No description provided."
+                              : currentCandidate.data.oneLiner}
+                          </p>
+                          {currentCandidate.type === "ai" && (
+                            <div className="mt-3 rounded border border-ai/20 bg-ai/5 p-2">
+                              <div className="font-mono text-[9px] font-bold uppercase text-ai/70">Suggested Scope</div>
+                              <div className="mt-1 text-xs text-ink-muted">{currentCandidate.data.suggestedScope}</div>
+                            </div>
+                          )}
+                        </div>
+
+                        {currentCandidate.type === "github" && (
+                          <div className="mt-4">
+                            <a
+                              href={currentCandidate.data.githubHtmlUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 font-mono text-[11px] font-medium text-focus hover:underline"
+                            >
+                              View on GitHub <span aria-hidden="true">↗</span>
+                            </a>
+                          </div>
+                        )}
+                      </motion.div>
+                    ) : (
+                      <div className="flex h-full items-center justify-center py-12 text-center">
+                        <p className="text-sm text-ink-muted italic">No tasks available in pool.</p>
+                      </div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
 
-              <AnimatePresence>
-                {phase === "ready" && (currentGithubCandidate || currentLlmIdeas) ? (
-                  <motion.div
-                    initial={decorativeMotionDisabled ? false : { opacity: 0, height: 0, marginTop: 0 }}
-                    animate={{ opacity: 1, height: "auto", marginTop: 24 }}
-                    exit={decorativeMotionDisabled ? undefined : { opacity: 0, height: 0, marginTop: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="rounded border border-surface-border bg-surface/50 p-4 shadow-inner">
-                      <div className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-focus/70">
-                        Task Preview
-                      </div>
-                      {currentGithubCandidate ? (
-                        <>
-                          <h3 className="text-sm font-semibold text-ink">{currentGithubCandidate.title}</h3>
-                          <div className="mt-2 max-h-32 overflow-y-auto pr-2 text-xs text-ink-muted custom-scrollbar">
-                            <p className="whitespace-pre-wrap">{currentGithubCandidate.description || "No description provided."}</p>
-                          </div>
-                          <a
-                            href={currentGithubCandidate.githubHtmlUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-3 inline-flex items-center gap-1 font-mono text-[11px] font-medium text-focus hover:underline"
-                          >
-                            View Issue on GitHub <span aria-hidden="true">↗</span>
-                          </a>
-                        </>
-                      ) : currentLlmIdeas ? (
-                        <>
-                          <h3 className="text-sm font-semibold text-ink">
-                            {currentLlmIdeas[0].title} — {currentLlmIdeas[1].title}
-                          </h3>
-                          <div className="mt-2 space-y-2 text-xs text-ink-muted">
-                            <p><strong className="text-ink/80">Scope:</strong> {currentLlmIdeas[0].suggestedScope}</p>
-                            <p><strong className="text-ink/80">Goal:</strong> {currentLlmIdeas[1].oneLiner}</p>
-                          </div>
-                        </>
-                      ) : null}
-                    </div>
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
 
               <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
                 <p className="max-w-xl text-xs text-ink-muted">
@@ -496,16 +390,16 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                   ) : phase === "loading" ? (
                     "Prefetching GitHub + AI (allSettled bundle) + minimum arm delay…"
                   ) : phase === "ready" ? (
-                    currentGithubCandidate || currentLlmIdeas ? (
+                    currentCandidate ? (
                       `Armed: ${[
-                        currentGithubCandidate ? "GitHub source" : null,
-                        currentLlmIdeas ? "AI reels" : null,
+                        currentCandidate.type === "github" ? "GitHub source" : "AI task",
                       ]
                         .filter(Boolean)
                         .join(" · ")}. Spin reshuffles issues from pool.`
                     ) : (
                       "Reels armed on mock combos until GitHub App + OpenAI + Upstash env are set (see .env.example)."
                     )
+
                   ) : phase === "spinning" ? (
                     "Shuffling…"
                   ) : (
