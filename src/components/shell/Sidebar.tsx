@@ -16,6 +16,12 @@ export function Sidebar({ avatarUrl }: { avatarUrl: string | null }) {
       active: pathname === "/",
     },
     {
+      name: "Assembly Line",
+      href: "/assembly",
+      icon: "precision_manufacturing",
+      active: pathname === "/assembly",
+    },
+    {
       name: "Friday Launch",
       href: "/friday",
       icon: "rocket_launch",
@@ -25,12 +31,17 @@ export function Sidebar({ avatarUrl }: { avatarUrl: string | null }) {
 
   return (
     <aside className="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-surface-border bg-surface-dim">
-      <div className="flex h-16 items-center gap-3 border-b border-surface-border px-6">
-        <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded bg-surface border border-surface-border">
+      <div className="flex h-24 items-center gap-3 border-b border-surface-border px-6">
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded bg-surface border border-surface-border">
           <div className="absolute -inset-2 rounded-full bg-ship/20 blur-md" />
-          <span className="material-symbols-outlined text-ship relative z-10 text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>rocket_launch</span>
+          <span className="material-symbols-outlined text-ship relative z-10" style={{ fontVariationSettings: "'FILL' 1" }}>eco</span>
         </div>
-        <h1 className="font-sans text-base font-bold text-ship tracking-wide">Shipping Engine</h1>
+        <div className="flex flex-col">
+          <h1 className="font-sans text-lg font-bold text-ship tracking-wide">Momentum</h1>
+          <span className="font-mono text-[9px] text-ink-muted uppercase tracking-widest">
+            Anti-PM Shipping<br/>Engine
+          </span>
+        </div>
       </div>
 
       <nav className="flex-1 space-y-2 p-4">

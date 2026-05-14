@@ -1,7 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getCohortDashboard } from "@/lib/cohort-dashboard";
-import { AssemblyLine } from "@/components/assembly-line/AssemblyLine";
 import { CommandCenter } from "@/components/command-center/CommandCenter";
 import { DashboardRefresh } from "@/components/shell/DashboardRefresh";
 
@@ -85,8 +84,6 @@ export default async function HomePage() {
                 weekTaskCount={dashboard.weekTaskCount}
                 weekShippedCount={dashboard.weekShippedCount}
               />
-
-              <AssemblyLine tasks={dashboard.tasks} viewerUserId={session.user.id} />
             </>
           ) : (
             <section className="grid gap-4 rounded border border-surface-border bg-surface-raised/60 p-5 md:grid-cols-2">
