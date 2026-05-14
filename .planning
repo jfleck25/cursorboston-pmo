@@ -1,0 +1,204 @@
+---
+name: Momentum Shipping Plan
+overview: End-to-end plan to ship Momentum (single-cohort, week-sectioned, arcade-style PM) on Next.js App Router with Prisma, GitHub App auth, hardened LLM spins, transactional ship flow, Discord webhooks, and Friday launch—aligned to design philosophy and fast Phase 2 delivery.
+todos:
+  - id: foundation-auth-db
+    content: "Bootstrap Next.js (App Router), Tailwind, Prisma, DB (Postgres/Supabase); add cohort auth (magic link or GitHub OAuth); single-cohort + Week model in schema from day one"
+    status: pending
+  - id: design-tokens-layout
+    content: "Add semantic color tokens (ship, focus, github, ai, danger); global dark shell, nav, lever; defer fine-grained visual polish until external design is ready"
+    status: pending
+  - id: schema-task-github-ship
+    content: "Tasks cohort-visible with GitHub identity (owner, repo, issueNumber, nodeId, htmlUrl), shippedAt, weekId, metadata JSON; SpinIdempotencyKey unique index"
+    status: pending
+  - id: schema-streak-votes-logs
+    content: "User streak fields + ship audit; Vote model for Friday upvotes; LlmInvocationLog (promptVersionHash, userId, outcome, latencyMs)"
+    status: pending
+  - id: phase2-assembly-radar-slot
+    content: "Ship Assembly Line, Command Center (fuel + radar), Slot modal with loading/empty states; prefers-reduced-motion + in-app reduced-motion toggle"
+    status: pending
+  - id: github-app-allowlist
+    content: "GitHub App on org: @octokit/auth-app installation token; server-only fetch for allowlisted repos; label quick-win issues"
+    status: pending
+  - id: llm-generateObject-ratelimit
+    content: "Vercel AI SDK generateObject + Zod; Upstash 5 spins/min/user; 5s AbortController; persist promptVersionHash per invocation"
+    status: pending
+  - id: slot-orchestration-idempotency
+    content: "Prefetch on modal open; Promise.allSettled for GitHub+LLM; per-reel failure UX; save spun task with client idempotency key (crypto.randomUUID)"
+    status: pending
+  - id: ship-transactional-flow
+    content: "Single server action/transaction: mark shipped + shippedAt + streak rules + optional ShipEvent; confetti only on success; optimistic UI with rollback + toast"
+    status: pending
+  - id: phase4-discord-friday
+    content: "Webhook utility (secret rotation); Roll + Ship embeds; Friday dashboard masonry + persisted votes + cohort timezone for week boundaries; no reaction reads without bot"
+    status: pending
+  - id: crosscutting-obs-realtime
+    content: "Structured logging for actions; optional Supabase Realtime or short polling for board/radar freshness"
+    status: pending
+  - id: deploy-env-docs
+    content: "Vercel deploy; env matrix (DATABASE_URL, GITHUB_APP_* , UPSTASH_*, AI keys, DISCORD_WEBHOOK_*); fix .cursorrules filename typo for agents"
+    status: pending
+isProject: false
+---
+
+# Momentum: complete shipping plan
+
+## Product scope and principles
+
+- **Audience:** One **single cohort** of developers; **all tasks are cohort-visible** (no private task lists in v1).
+- **Time structure:** Work is **sectioned by week** (`Week` rows: theme title, `startsAt`, `endsAt`, optional `sortIndex`). “Current week” drives LLM context and Friday Launch filters.
+- **Feel:** Arcade / IDE energy—horizontal conveyors, glass panels, motion with discipline (see Motion).
+- **Design system:** Implement **semantic color roles** early (`ship`, `focus`, `github`, `ai`, `danger`, `surface`) so Ship green vs focus blue do not collide with GitHub vs AI card accents. **Fine-grained visual polish** can wait until your external design artifacts land; tokens and layout should not.
+
+## Streak rules (authoritative)
+
+Implement exactly in server logic and tests:
+
+1. **Any ship counts** toward completing work (task moves to `shipped`, confetti, Discord, fuel gauge, etc.).
+2. **Streak increments at most once per calendar day** on **streak-eligible days** (next bullet).
+3. **Weekends do not count** for streak: **Saturday and Sunday** (in the **cohort timezone**, chosen once and stored as config—e.g. `America/Chicago`) **never increment** `currentStreak` / `highestStreak`, even if the user ships.
+4. On an eligible weekday, the **first ship of that local day** may increment streak **by 1** if it follows consecutive eligible days with at least one qualifying ship; **subsequent ships the same day** do not add again.
+
+**Suggested persisted fields on `User`:** `currentStreak`, `highestStreak`, `lastStreakIncrementLocalDate` (date-only string in cohort TZ), and optionally `lastShipAt` for analytics. **Optional `ShipEvent` row** per ship for Discord replay, audits, and debugging failed webhooks.
+
+## Architecture (high level)
+
+```mermaid
+flowchart LR
+  subgraph client [NextClient]
+    Board[AssemblyLine]
+    Radar[CommandCenter]
+    Slot[SlotModal]
+  end
+  subgraph server [ServerActions_RouteHandlers]
+    GH[GitHubAppOctokit]
+    LLM[AI_generateObject]
+    RL[UpstashRateLimit]
+    DB[(Postgres_Prisma)]
+  end
+  subgraph external [External]
+    GitHub[GitHub_API]
+    OpenAI[OpenAI_or_Anthropic]
+    Discord[Discord_Webhook]
+  end
+  Board --> DB
+  Radar --> DB
+  Slot --> RL
+  Slot --> GH
+  Slot --> LLM
+  GH --> GitHub
+  LLM --> OpenAI
+  ShipFlow[shipTask_transaction] --> DB
+  ShipFlow --> Discord
+```
+
+## Phase 1: Foundation, auth, and data model (expanded)
+
+**1.1 Project bootstrap**
+
+- Next.js **App Router**, **Tailwind**, **Framer Motion**, **Prisma** + **Postgres** (Supabase or Vercel Postgres recommended for auth/realtime compatibility).
+- **Auth (required for v1):** Prefer **Supabase Auth** (magic link) or **GitHub OAuth** so every `User` maps to a real principal. Single-cohort still needs identity for assignments, rate limits, votes, and audit logs.
+
+**1.2 Core entities**
+
+- **`Cohort`:** Single row for now (`slug`, `name`, `timezone` for week/streak boundaries).
+- **`Week`:** `cohortId`, `title` (theme), `startsAt`, `endsAt`, `isActive` or infer active by date.
+- **`User`:** Profile fields + streak fields (see Streak rules).
+- **`Task`:** `title`, `description`, `source` (`github` | `ai`), `status` (`incoming` | `in_progress` | `shipped`), `themeTag`, `weekId` (nullable until slotted), `assigneeUserId` (nullable), **`shippedAt`** (nullable), **GitHub columns** (all nullable for AI tasks): `githubOwner`, `githubRepo`, `githubIssueNumber`, `githubNodeId`, `githubHtmlUrl`, **`metadata` JSON** for extra payload, **`idempotencyKey` UNIQUE** (client UUID for spin saves).
+- **`CohortSettings` or fields on `Cohort`:** pointer to **current week** or derive from `Week` table.
+- **`LlmInvocationLog`:** `id`, `userId`, `promptVersionHash`, `model`, `ok`, `errorCode`, `durationMs`, `createdAt` (never store raw prompts in client-accessible code paths; server only).
+- **`Vote`:** `userId`, `taskId`, `createdAt`, **unique (userId, taskId)** for Friday upvotes; index by `taskId`.
+
+**1.3 Global shell**
+
+- Dark wrapper `#0F1115`, top nav with **profile + streak flame**, floating **“Pull the Lever”** CTA opening the slot modal.
+- **Reduced motion:** Respect `prefers-reduced-motion` and add a **user-toggle** (localStorage) that disables non-essential Framer Motion (stripes, radar drift, slot spin visuals) while keeping functional transitions.
+
+**1.4 Sequencing tweak (locked in)**
+
+- Ship **`shippedAt`**, **GitHub identity columns**, **Week**, **idempotency**, **streak fields**, and **LLM log table** in **Phase 1** so Phases 3–4 avoid painful migrations.
+
+## Phase 2: Core views (build for real use, fast turnaround)
+
+Assume **realistic data volume**, **skeletons**, and **empty states** from the start.
+
+**2.1 Assembly Line (board)**
+
+- Horizontal scroll, three zones: **Incoming**, **In the Works**, **Shipped**; subtle animated stripes (CSS-first where possible).
+- **Task cards:** semantic borders (`github` vs `ai` roles); drag or explicit actions to move columns if you use DnD—keep server as source of truth.
+- **Cohort visibility:** board reads all cohort tasks; optional filter by week.
+
+**2.2 Command Center**
+
+- **Fuel gauge:** % of **week target** or % of tasks in `shipped` for active week (define one rule in code constants).
+- **Radar:** avatars as soft dots; distance-to-center maps to **non-competitive** progress signal (e.g., fraction of personal week tasks shipped or column-based proximity—pick one formula and document it). Must remain legible on `#0F1115` (contrast).
+
+**2.3 Slot Machine modal**
+
+- Glassmorphic center modal; three reels (Source, Tech/Scope, Output).
+- **Prefetch:** On modal open (or lever click), **quietly start** GitHub + LLM fetches in the background so SPIN is often instant or only animating reveal.
+- **Motion:** Full Framer Motion for spin; **degraded path** when reduced motion is on (instant settle or short crossfade).
+
+## Phase 3: Integrations and game mechanics
+
+**3.1 GitHub (cohort model — no PAT)**
+
+- Implement a **GitHub App** installed on your **organization**.
+- Server-only: **`@octokit/auth-app`** → installation access token; restrict to **allowlisted** `owner/repo` pairs from env or DB.
+- Server action / route handler: list **open issues** with label **`quick-win`** for allowlisted repos; map to internal `Task` shape with full **identity + `html_url`**.
+
+**3.2 LLM idea generator (hardened)**
+
+- **Vercel AI SDK** **`generateObject`** with a strict **Zod** schema (e.g., exactly three ideas with title + one-liner + suggested scope).
+- **`@upstash/ratelimit`:** e.g. **5 spins per minute per user** (keyed by auth user id).
+- **`AbortController`** with **5s** deadline per invocation.
+- Persist **`promptVersionHash`** (hash of system prompt template + schema version string) on **`LlmInvocationLog`** for reproducibility and debugging.
+
+**3.3 Slot orchestration**
+
+- Use **`Promise.allSettled`** for GitHub fetch and LLM generation—**never `Promise.all`** so one failure does not nuke the other reel.
+- **Per-reel UI:** show partial results + explicit retry for failed reel.
+- **Save spun task:** Server validates payload; **`idempotencyKey`** from client **`crypto.randomUUID()`**; **`CREATE` with unique constraint** so double-clicks / retries do not duplicate rows.
+
+**3.4 Ship It (single transactional story)**
+
+- One server path (transaction): validate task + permissions → set `status`, **`shippedAt`**, apply **streak rules** in cohort TZ → insert **`ShipEvent`** (optional) → commit.
+- **Client:** trigger **confetti only after** successful response; on failure, **rollback optimistic column move** + **toast**.
+- **Discord Ship webhook** may be Phase 4, but **emit a domain event or queue hook** from the same transaction boundary where possible; if Discord fails, **log and optionally retry** without rolling back the ship (user-visible ship is source of truth).
+
+## Phase 4: Discord hype engine and Friday Launch
+
+**4.1 Webhook utility**
+
+- Centralize Discord POST; **secrets in env**; plan for **rotation**; handle **429/400** with logging; never expose webhook URL to client.
+
+**4.2 Messages**
+
+- **Roll webhook:** when user **accepts** a spun task → cohort-friendly copy with user mention handle and task title + link.
+- **Ship webhook:** rich embed with link; **reactions** are a **human** feature on the message—**do not depend on reading reactions** without a **Discord bot + gateway** (out of scope unless you add later).
+
+**4.3 Friday Launch dashboard**
+
+- Masonry of **Launch Cards** for tasks with **`shippedAt`** in the **active week window** (cohort timezone).
+- **Upvotes** via **`Vote`** table; **rate limit** vote endpoint; one vote per user per task.
+
+## Cross-cutting requirements
+
+- **Observability:** structured logs for GitHub, LLM, Discord, and rate-limit denials (no secrets in logs).
+- **Optional realtime:** Supabase Realtime or **short polling** on board/radar for “alive” cohort feel—optional for v1 if timeboxed.
+- **Security:** all external APIs and tokens **server-only**; validate user belongs to cohort on every mutation.
+- **Agent ergonomics:** fix **`.cursorrules`** filename typo so tooling consistently loads philosophy and stack.
+
+## Definition of Done (site shipped)
+
+- Authenticated user can **open slot**, see **GitHub + AI** options with **graceful partial failure**, **save** without duplicates, **move/ship** tasks with **correct streak behavior** Mon–Fri cohort TZ.
+- **Assembly Line + Command Center + Friday** pages usable on real data for **one cohort**, **week-scoped** themes.
+- **Discord Roll + Ship** fire reliably with basic retry/logging.
+- **Reduced motion** respected + toggle.
+- **Deployed** (e.g. Vercel) with **documented env vars** and a **smoke checklist** (login, spin, ship, vote, webhook).
+
+## Risk register (short)
+
+- **GitHub App** setup (permissions, installation id, private key handling in deployment) is the highest fixed cost—do it early in Phase 3 before UI polish depends on live issue shapes.
+- **Timezone correctness** for streaks and weeks—unit-test edge cases around midnight and DST for the chosen IANA zone.
+- **LLM latency**—prefetch + short timeout + partial UI prevents “stuck SPIN.”

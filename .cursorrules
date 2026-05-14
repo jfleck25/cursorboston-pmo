@@ -1,0 +1,23 @@
+# Project: Momentum (The Shipping Engine)
+
+## Core Philosophy
+You are building an AI-first, highly gamified project management tool for a cohort of developers learning agentic software development. Do NOT build a traditional, boring Jira or Trello clone. The app must feel like an arcade game or a developer's IDE. It focuses on momentum, dopamine, and a weekly shipping cadence.
+
+## Tech Stack
+- **Frontend:** Next.js (App Router), React, Tailwind CSS, Framer Motion (for physics/animations).
+- **Backend:** Next.js Server Actions OR lightweight Python backend (FastAPI) if complex LLM routing is preferred. 
+- **Database:** Supabase, Vercel Postgres, or standard SQLite (Prisma ORM).
+- **Integrations:** GitHub API, Discord Webhooks, OpenAI/Anthropic API.
+
+## Design Language
+- **Theme:** Dark mode strictly. Background: `#0F1115`.
+- **Primary Accent:** Neon Cyber-Green (`#00FF66`) for "Ship" actions and streaks.
+- **Secondary Accent:** Electric Blue (`#00F0FF`) for UI borders and active states.
+- **Typography:** `JetBrains Mono` or `Fira Code` for numbers/data; `Inter` for standard text.
+- **UI Paradigms:** Glassmorphism panels, glowing borders, horizontal scrolling "conveyor belts" over vertical columns.
+
+## Coding Guidelines
+- Write modular, reusable React components.
+- Heavily utilize Tailwind classes for styling; avoid custom CSS unless necessary for complex animations.
+- Implement Framer Motion for all state transitions (e.g., slot machine spins, cards moving to 'Shipped').
+- Keep server-side logic secure and separate from client components.

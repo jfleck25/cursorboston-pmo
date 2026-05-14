@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskSource {
+  github
+  ai
+}
+
+enum TaskStatus {
+  incoming
+  in_progress
+  shipped
+}
+
+model Cohort {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  timezone  String
+  weeks     Week[]
+  users     User[]
+  tasks     Task[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Week {
+  id        String   @id @default(cuid())
+  cohortId  String
+  cohort    Cohort   @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  title     String
+  startsAt  DateTime
+  endsAt    DateTime
+  isActive  Boolean  @default(false)
+  sortIndex Int      @default(0)
+  tasks     Task[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cohortId, startsAt])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  cohortId String?
+  cohort   Cohort? @relation(fields: [cohortId], references: [id])
+
+  currentStreak                Int       @default(0)
+  highestStreak                Int       @default(0)
+  lastStreakIncrementLocalDate String?
+  lastShipAt                   DateTime?
+
+  accounts Account[]
+  sessions Session[]
+
+  tasksAssigned Task[]             @relation("TaskAssignee")
+  votes         Vote[]
+  llmLogs       LlmInvocationLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Task {
+  id             String     @id @default(cuid())
+  title          String
+  description    String?    @db.Text
+  source         TaskSource
+  status         TaskStatus @default(incoming)
+  themeTag       String?
+  weekId         String?
+  week           Week?      @relation(fields: [weekId], references: [id])
+  assigneeUserId String?
+  assignee       User?      @relation("TaskAssignee", fields: [assigneeUserId], references: [id])
+  cohortId       String
+  cohort         Cohort     @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+
+  shippedAt DateTime?
+
+  githubOwner       String?
+  githubRepo        String?
+  githubIssueNumber Int?
+  githubNodeId      String?
+  githubHtmlUrl     String?
+
+  metadata       Json?
+  idempotencyKey String? @unique
+
+  votes Vote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cohortId, status])
+  @@index([weekId])
+}
+
+model LlmInvocationLog {
+  id                String  @id @default(cuid())
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promptVersionHash String
+  model             String
+  ok                Boolean
+  errorCode         String?
+  durationMs        Int
+  createdAt         DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Vote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, taskId])
+  @@index([taskId])
+}
+
+// NextAuth / Auth.js — https://authjs.dev/reference/adapter/prisma
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
