@@ -38,13 +38,14 @@ export async function deleteTask(taskId: string) {
     await prisma.task.delete({
       where: { id: taskId },
     });
-    
+
     revalidatePath("/");
     revalidatePath("/assembly");
     revalidatePath("/friday");
-    
+
     return { ok: true };
-  } catch (err: any) {
-    return { ok: false, error: err.message ?? "Failed to delete task" };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Failed to delete task";
+    return { ok: false, error: errorMessage };
   }
 }

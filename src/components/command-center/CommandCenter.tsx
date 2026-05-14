@@ -28,7 +28,7 @@ function computeBlips(
     );
     const assignedWeek = mine.length;
     const shippedWeek = mine.filter((t) => t.status === "shipped").length;
-    
+
     // 0 = outer ring (no week assignments)
     // 0.5 = floating area (assigned but 0 shipped)
     // 1 = hub (1+ shipped)
@@ -36,7 +36,7 @@ function computeBlips(
     if (assignedWeek > 0) {
       inward = shippedWeek > 0 ? 1 : 0.5;
     }
-    
+
     const angle = (2 * Math.PI * index) / members.length - Math.PI / 2;
 
     return { member, angle, inward, assignedWeek, shippedWeek };
@@ -47,14 +47,12 @@ export function CommandCenter({
   activeWeek,
   tasks,
   members,
-  fuelPercent,
   weekTaskCount,
   weekShippedCount,
 }: {
   activeWeek: ActiveWeek | null;
   tasks: DashboardTask[];
   members: DashboardMember[];
-  fuelPercent: number;
   weekTaskCount: number;
   weekShippedCount: number;
 }) {

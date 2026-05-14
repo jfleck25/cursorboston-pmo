@@ -35,7 +35,7 @@ function TaskCard({
   const isShipped = task.status === "shipped";
   const isInProgress = task.status === "in_progress";
   let accent = "border-surface-border";
-  let glow = "";
+
   if (isShipped) {
     accent = "border-ship/80 shadow-[0_0_12px_rgba(0,255,102,0.4)] hover:shadow-[0_0_20px_rgba(0,255,102,0.6)]";
   } else if (isInProgress) {
@@ -64,7 +64,7 @@ function TaskCard({
           {task.source === "github" ? "data_object" : "smart_toy"}
         </span>
       </div>
-      
+
       <h3 className="font-sans text-[15px] font-medium leading-snug text-ink">
         {task.githubHtmlUrl ? (
           <Link
@@ -105,7 +105,7 @@ function TaskCard({
             {task.status === "in_progress" ? "IN PROGRESS" : task.status === "shipped" ? "SHIPPED" : task.githubIssueNumber ? `#ISSUE-${task.githubIssueNumber}` : `#OPT-${task.id.slice(0, 2).toUpperCase()}`}
           </span>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {viewerUserId && (
             <button
@@ -202,9 +202,8 @@ export function AssemblyLine({
       </div>
 
       <div
-        className={`relative overflow-hidden rounded border border-surface-border bg-surface-muted/30 ${
-          decorativeMotionDisabled ? "" : "animate-conveyor"
-        }`}
+        className={`relative overflow-hidden rounded border border-surface-border bg-surface-muted/30 ${decorativeMotionDisabled ? "" : "animate-conveyor"
+          }`}
         style={{
           backgroundImage:
             "repeating-linear-gradient(-45deg, rgba(0,240,255,0.04) 0 10px, transparent 10px 20px)",
