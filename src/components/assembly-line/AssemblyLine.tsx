@@ -27,9 +27,13 @@ function TaskCard({
   onRollbackShip: (id: string) => void;
 }) {
   const isShipped = task.status === "shipped";
+  const isInProgress = task.status === "in_progress";
   let accent = "border-surface-border";
+  let glow = "";
   if (isShipped) {
     accent = "border-ship/80 shadow-[0_0_12px_rgba(0,255,102,0.4)] hover:shadow-[0_0_20px_rgba(0,255,102,0.6)]";
+  } else if (isInProgress) {
+    accent = "border-focus/80 shadow-[0_0_12px_rgba(0,240,255,0.4)]";
   } else if (task.source === "github") {
     accent = "border-github/50 shadow-[0_0_0_1px_rgba(163,113,247,0.2)] hover:border-github/80 transition-colors";
   } else {
@@ -38,70 +42,72 @@ function TaskCard({
 
   return (
     <article
-      className={`rounded border bg-surface-raised/90 p-3 backdrop-blur-sm transition-shadow duration-300 ${accent}`}
+      className={`relative flex flex-col gap-3 rounded-lg border bg-surface-container-high p-4 backdrop-blur-sm transition-shadow duration-300 ${accent}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="font-sans text-sm font-semibold leading-snug text-ink">
-          {task.githubHtmlUrl ? (
-            <Link
-              href={task.githubHtmlUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-focus"
-            >
-              {task.title}
-            </Link>
-          ) : (
-            task.title
-          )}
-        </h3>
-        <span
-          className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide ${
-            task.source === "github"
-              ? "bg-github/15 text-github"
-              : "bg-ai/15 text-ai"
-          }`}
-        >
-          {task.source}
+        {task.themeTag ? (
+          <div className="rounded border border-surface-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-focus/90">
+            {task.themeTag}
+          </div>
+        ) : (
+          <div className="rounded border border-surface-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide text-ink-muted">
+            {task.source === "github" ? "GitHub Issue" : "AI Generated"}
+          </div>
+        )}
+        <span className="material-symbols-outlined text-[16px] text-focus" style={{ fontVariationSettings: "'FILL' 0" }}>
+          {task.source === "github" ? "data_object" : "smart_toy"}
         </span>
       </div>
-      {task.description ? (
-        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-ink-muted">
-          {task.description}
-        </p>
-      ) : null}
-      <div className="mt-3 flex items-center justify-between gap-2">
+      
+      <h3 className="font-sans text-[15px] font-medium leading-snug text-ink">
+        {task.githubHtmlUrl ? (
+          <Link
+            href={task.githubHtmlUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-focus"
+          >
+            {task.title}
+          </Link>
+        ) : (
+          task.title
+        )}
+      </h3>
+
+      {isInProgress && (
+        <div className="mt-2 h-1 w-full rounded-full bg-surface-muted overflow-hidden">
+          <div className="h-full w-[65%] bg-focus rounded-full" />
+        </div>
+      )}
+
+      <div className="mt-auto pt-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {task.assignee?.image ? (
             <Image
               src={task.assignee.image}
               alt=""
-              width={22}
-              height={22}
-              className="h-[22px] w-[22px] rounded border border-surface-border object-cover"
+              width={20}
+              height={20}
+              className="h-5 w-5 rounded border border-surface-border object-cover"
             />
           ) : (
-            <div className="flex h-[22px] w-[22px] items-center justify-center rounded border border-surface-border bg-surface-muted font-mono text-[10px] text-ink-muted">
+            <div className="flex h-5 w-5 items-center justify-center rounded border border-surface-border bg-surface-muted font-mono text-[9px] text-ink-muted">
               {(task.assignee?.name ?? "?").slice(0, 1).toUpperCase()}
             </div>
           )}
-          <span className="max-w-[120px] truncate font-mono text-[10px] text-ink-muted">
-            {task.assignee?.name ?? "Unassigned"}
+          <span className="font-mono text-[10px] uppercase tracking-wide text-focus font-bold">
+            {task.status === "in_progress" ? "IN PROGRESS" : task.status === "shipped" ? "SHIPPED" : task.githubIssueNumber ? `#ISSUE-${task.githubIssueNumber}` : `#OPT-${task.id.slice(0, 2).toUpperCase()}`}
           </span>
         </div>
-        {task.themeTag ? (
-          <span className="truncate font-mono text-[10px] text-focus/90">
-            {task.themeTag}
-          </span>
-        ) : null}
+        
+        <TaskShipButton
+          taskId={task.id}
+          status={task.status}
+          viewerUserId={viewerUserId}
+          onOptimisticShip={onOptimisticShip}
+          onRollbackShip={onRollbackShip}
+        />
       </div>
-      <TaskShipButton
-        taskId={task.id}
-        status={task.status}
-        viewerUserId={viewerUserId}
-        onOptimisticShip={onOptimisticShip}
-        onRollbackShip={onRollbackShip}
-      />
     </article>
   );
 }
@@ -163,22 +169,29 @@ export function AssemblyLine({
           backgroundSize: "28px 28px",
         }}
       >
-        <div className="relative flex min-h-[320px] gap-4 overflow-x-auto p-4 md:gap-5 md:p-5">
+        <div className="relative flex min-h-[500px] gap-6 overflow-x-auto p-4 md:p-6" style={{ backgroundImage: "repeating-linear-gradient(-45deg, rgba(255,255,255,0.02) 0 10px, transparent 10px 20px)", backgroundSize: "28px 28px" }}>
           {ZONES.map((zone) => {
             const list = byStatus(zone.status);
+            const borderColor = zone.status === "in_progress" ? "border-focus" : zone.status === "shipped" ? "border-ship" : "border-surface-border";
+            const borderTop = `border-t-4 ${borderColor}`;
             return (
               <motion.div
                 layout
                 key={zone.status}
-                className="flex min-w-[min(100%,280px)] flex-1 flex-col rounded border border-surface-border/80 bg-surface/85 p-3 shadow-[inset_0_0_0_1px_rgba(0,240,255,0.06)] backdrop-blur-md md:min-w-[300px]"
+                className={`flex min-w-[min(100%,320px)] flex-1 flex-col rounded border border-surface-border bg-[#1A1D23] shadow-lg ${borderTop}`}
               >
-                <div className="mb-3 border-b border-surface-border pb-2">
-                  <div className="font-mono text-[11px] font-bold uppercase tracking-wide text-ship">
-                    {zone.label}
+                <div className="flex items-center justify-between border-b border-surface-border/50 bg-surface-container-highest/20 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    {zone.status === "in_progress" && <div className="h-2 w-2 rounded-full bg-focus" />}
+                    <div className="font-mono text-xs font-bold text-ink">
+                      {zone.label}
+                    </div>
                   </div>
-                  <div className="font-mono text-[10px] text-ink-muted">{zone.blurb}</div>
+                  <div className="flex h-6 min-w-[24px] items-center justify-center rounded bg-surface-muted/50 px-1.5 font-mono text-[10px] font-bold text-ink-muted">
+                    {list.length}
+                  </div>
                 </div>
-                <div className="flex flex-1 flex-col gap-3">
+                <div className="flex flex-1 flex-col gap-4 p-4">
                   {list.length === 0 ? (
                     <div className="flex flex-1 flex-col items-center justify-center rounded border border-dashed border-surface-border bg-surface-raised/40 px-3 py-10 text-center">
                       <p className="font-mono text-xs font-bold uppercase tracking-wide text-ink-muted">

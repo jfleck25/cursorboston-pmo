@@ -31,56 +31,50 @@ export function FridayLaunchGrid({
       {tasks.map((t) => (
         <article
           key={t.id}
-          className="mb-4 break-inside-avoid rounded border border-surface-border bg-surface-raised/90 p-4 shadow-[inset_0_0_0_1px_rgba(0,240,255,0.06)]"
+          className="mb-4 break-inside-avoid rounded border border-surface-border bg-surface-container-high p-5 shadow-lg transition hover:border-surface-border/80"
         >
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-sans text-sm font-semibold leading-snug text-ink">
-              {t.githubHtmlUrl ? (
-                <Link href={t.githubHtmlUrl} target="_blank" rel="noreferrer" className="hover:text-focus">
+          <div className="flex items-start gap-4">
+            {t.assignee?.image ? (
+              <Image
+                src={t.assignee.image}
+                alt=""
+                width={40}
+                height={40}
+                className="h-10 w-10 shrink-0 rounded border border-surface-border object-cover"
+              />
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-surface-border bg-surface-muted font-mono text-xs text-ink-muted">
+                {(t.assignee?.name ?? "?").slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-sans text-lg font-bold truncate text-ink">
                   {t.title}
+                </h3>
+                {t.voteCount > 0 && (
+                  <span className="shrink-0 rounded bg-surface/80 px-2 py-0.5 font-mono text-[10px] font-bold tracking-widest text-ink">
+                    RANK #1
+                  </span>
+                )}
+              </div>
+              {t.githubHtmlUrl ? (
+                <Link href={t.githubHtmlUrl} target="_blank" rel="noreferrer" className="font-mono text-[11px] text-focus hover:underline truncate block max-w-full">
+                  github.com/{t.githubOwner}/{t.githubRepo}
                 </Link>
               ) : (
-                t.title
+                <span className="font-mono text-[11px] text-ink-muted">Momentum / {t.source}</span>
               )}
-            </h3>
-            <span
-              className={`shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase ${
-                t.source === "github" ? "bg-github/15 text-github" : "bg-ai/15 text-ai"
-              }`}
-            >
-              {t.source}
-            </span>
-          </div>
-          {t.description ? (
-            <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-ink-muted">{t.description}</p>
-          ) : null}
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              {t.assignee?.image ? (
-                <Image
-                  src={t.assignee.image}
-                  alt=""
-                  width={24}
-                  height={24}
-                  className="h-6 w-6 rounded border border-surface-border object-cover"
-                />
-              ) : (
-                <div className="flex h-6 w-6 items-center justify-center rounded border border-surface-border bg-surface-muted font-mono text-[10px] text-ink-muted">
-                  {(t.assignee?.name ?? "?").slice(0, 1).toUpperCase()}
-                </div>
-              )}
-              <span className="truncate font-mono text-[10px] text-ink-muted">
-                {t.assignee?.name ?? "Cohort"}
-              </span>
             </div>
-            <span className="font-mono text-[10px] text-ink-muted">
-              {new Date(t.shippedAt).toLocaleDateString()}
-            </span>
           </div>
-          <div className="mt-4 flex items-center justify-between border-t border-surface-border pt-3">
-            <span className="font-mono text-[11px] text-ship">
-              {t.voteCount} launch {t.voteCount === 1 ? "upvote" : "upvotes"}
-            </span>
+
+          <div className="mt-4 rounded border border-focus/30 bg-[#161c26]/50 p-4">
+            <p className="text-sm leading-relaxed text-ink-muted">
+              {t.description || "No description provided."}
+            </p>
+          </div>
+
+          <div className="mt-5 flex items-center justify-between">
             {viewerUserId ? (
               <button
                 type="button"
@@ -98,17 +92,24 @@ export function FridayLaunchGrid({
                     router.refresh();
                   })();
                 }}
-                className={`rounded border px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wide transition ${
-                  t.myVote
-                    ? "border-ship bg-ship/20 text-ship"
-                    : "border-surface-border text-ink-muted hover:border-focus hover:text-focus"
+                className={`flex items-center gap-2 rounded bg-surface-raised px-4 py-2 font-mono text-sm font-bold transition hover:bg-surface-raised/80 ${
+                  t.myVote ? "text-ship" : "text-ink"
                 }`}
               >
-                {t.myVote ? "Upvoted" : "Upvote"}
+                <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 0" }}>arrow_upward</span>
+                {t.voteCount}
               </button>
             ) : (
-              <span className="font-mono text-[10px] text-ink-muted">Sign in to upvote</span>
+              <div className="flex items-center gap-2 rounded bg-surface-raised px-4 py-2 font-mono text-sm font-bold text-ink-muted">
+                <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
+                {t.voteCount}
+              </div>
             )}
+
+            <div className="flex items-center gap-1.5 font-mono text-sm font-bold text-warning">
+              <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
+              {t.voteCount > 0 ? t.voteCount * 4 + 8 : 0}
+            </div>
           </div>
         </article>
       ))}

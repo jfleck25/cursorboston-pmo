@@ -8,31 +8,36 @@ export default async function FridayPage() {
 
   return (
     <div className="space-y-8">
-      <section className="max-w-2xl space-y-3">
-        <p className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-focus">
-          Phase 4 · Friday launch
-        </p>
-        <h1 className="font-sans text-3xl font-bold tracking-tight text-ink md:text-4xl">
-          Showcase wall
-        </h1>
-        <p className="text-base leading-relaxed text-ink-muted">
-          Masonry of everything the cohort shipped this active week—upvote the builds that
-          inspired you (one toggle per task, rate-limited).
-        </p>
+      <section className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-surface-border">
+        <div className="space-y-1">
+          <h1 className="font-sans text-3xl font-bold tracking-tight text-ink md:text-5xl">
+            Live Voting Board
+          </h1>
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-ship shadow-[0_0_8px_rgba(0,255,102,0.8)]" />
+            <p className="font-mono text-[11px] uppercase tracking-wide text-ink-muted">
+              Cycle {data?.weekTitle ?? "42"} Active. Ship or die trying.
+            </p>
+          </div>
+        </div>
+        
+        {data && (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-surface-container-high border border-surface-border px-3 py-1.5 rounded font-mono text-[11px] font-bold text-ink-muted uppercase tracking-wider">
+              <span>TOTAL_SHIPS:</span>
+              <span className="text-ink">{data.tasks.length}</span>
+            </div>
+            <div className="flex items-center gap-2 bg-[#004f54]/20 border border-focus/30 px-3 py-1.5 rounded font-mono text-[11px] font-bold text-focus uppercase tracking-wider">
+              <span>TIME_REMAINING:</span>
+              <span>04:12:00</span>
+            </div>
+          </div>
+        )}
       </section>
 
       {session?.user && data ? (
         <>
-          <div className="flex flex-wrap items-end justify-between gap-4 rounded border border-surface-border bg-surface-raised/50 p-4">
-            <div>
-              <div className="font-mono text-[10px] font-bold uppercase text-ink-muted">Cohort</div>
-              <div className="font-mono text-lg text-ship">{data.cohortName}</div>
-            </div>
-            <div>
-              <div className="font-mono text-[10px] font-bold uppercase text-ink-muted">Week</div>
-              <div className="font-sans text-lg text-ink">{data.weekTitle}</div>
-            </div>
-          </div>
+
           <FridayLaunchGrid tasks={data.tasks} viewerUserId={session.user.id} />
         </>
       ) : (
