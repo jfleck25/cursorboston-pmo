@@ -35,12 +35,18 @@ function isGithubAppEnvReady(): boolean {
   const allowlist = parseGithubRepoAllowlist(process.env.GITHUB_APP_REPO_ALLOWLIST);
   
   if (!appId || !installationId || !privateKeyRaw || allowlist.length === 0) {
+    console.log("[github-app] Missing vars:", { 
+      appId: !!appId, 
+      installationId: !!installationId, 
+      privateKey: !!privateKeyRaw, 
+      allowlistCount: allowlist.length 
+    });
     return false;
   }
 
   const privateKey = normalizePrivateKey(privateKeyRaw);
   if (!privateKey.includes("BEGIN")) {
-    console.warn("[github-app] GITHUB_APP_PRIVATE_KEY is invalid. It must be a full RSA PEM key starting with '-----BEGIN RSA PRIVATE KEY-----'. Currently it looks like a SHA256 string.");
+    console.warn("[github-app] GITHUB_APP_PRIVATE_KEY is invalid (missing BEGIN).");
     return false;
   }
 
@@ -82,7 +88,9 @@ export async function fetchQuickWinGithubIssues(): Promise<{
   issues: GithubIssueCandidate[];
   partialErrors: string[];
 }> {
-  if (!isGithubAppEnvReady()) {
+  const ready = isGithubAppEnvReady();
+  console.log("[github-app] isGithubAppEnvReady?", ready);
+  if (!ready) {
     return { configured: false, issues: [], partialErrors: [] };
   }
 

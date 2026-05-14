@@ -16,6 +16,7 @@ export type PrefetchGithubQuickWinsResult =
  */
 export async function prefetchGithubQuickWins(): Promise<PrefetchGithubQuickWinsResult> {
   const session = await auth();
+  console.log("[github-app] session user id:", session?.user?.id || "NONE");
   if (!session?.user?.id) {
     return { ok: true, anonymous: true };
   }
