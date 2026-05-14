@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useMotionPreference } from "@/components/providers/MotionPreferenceProvider";
-import { SlotMachineModal } from "./SlotMachineModal";
+import { SlotMachineModal } from "@/components/slot-machine/SlotMachineModal";
 
 export function ShellClient() {
   const [open, setOpen] = useState(false);

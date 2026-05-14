@@ -31,9 +31,20 @@ export function parseGithubRepoAllowlist(raw: string | undefined): GithubRepoRef
 function isGithubAppEnvReady(): boolean {
   const appId = process.env.GITHUB_APP_ID?.trim();
   const installationId = process.env.GITHUB_APP_INSTALLATION_ID?.trim();
-  const privateKey = process.env.GITHUB_APP_PRIVATE_KEY?.trim();
+  const privateKeyRaw = process.env.GITHUB_APP_PRIVATE_KEY?.trim();
   const allowlist = parseGithubRepoAllowlist(process.env.GITHUB_APP_REPO_ALLOWLIST);
-  return Boolean(appId && installationId && privateKey && allowlist.length > 0);
+  
+  if (!appId || !installationId || !privateKeyRaw || allowlist.length === 0) {
+    return false;
+  }
+
+  const privateKey = normalizePrivateKey(privateKeyRaw);
+  if (!privateKey.includes("BEGIN")) {
+    console.warn("[github-app] GITHUB_APP_PRIVATE_KEY is invalid. It must be a full RSA PEM key starting with '-----BEGIN RSA PRIVATE KEY-----'. Currently it looks like a SHA256 string.");
+    return false;
+  }
+
+  return true;
 }
 
 function createInstallationOctokit(): Octokit | null {

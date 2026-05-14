@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { FridayLaunchGrid } from "@/components/phase2/FridayLaunchGrid";
+import { FridayLaunchGrid } from "@/components/friday-launch/FridayLaunchGrid";
 import { getFridayLaunch } from "@/lib/friday-launch";
 
 export default async function FridayPage() {

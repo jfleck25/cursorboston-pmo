@@ -26,14 +26,19 @@ function TaskCard({
   onOptimisticShip: (id: string) => void;
   onRollbackShip: (id: string) => void;
 }) {
-  const accent =
-    task.source === "github"
-      ? "border-github/50 shadow-[0_0_0_1px_rgba(163,113,247,0.2)]"
-      : "border-ai/50 shadow-[0_0_0_1px_rgba(125,244,255,0.15)]";
+  const isShipped = task.status === "shipped";
+  let accent = "border-surface-border";
+  if (isShipped) {
+    accent = "border-ship/80 shadow-[0_0_12px_rgba(0,255,102,0.4)] hover:shadow-[0_0_20px_rgba(0,255,102,0.6)]";
+  } else if (task.source === "github") {
+    accent = "border-github/50 shadow-[0_0_0_1px_rgba(163,113,247,0.2)] hover:border-github/80 transition-colors";
+  } else {
+    accent = "border-ai/50 shadow-[0_0_0_1px_rgba(125,244,255,0.15)] hover:border-ai/80 transition-colors";
+  }
 
   return (
     <article
-      className={`rounded border bg-surface-raised/90 p-3 backdrop-blur-sm ${accent}`}
+      className={`rounded border bg-surface-raised/90 p-3 backdrop-blur-sm transition-shadow duration-300 ${accent}`}
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-sans text-sm font-semibold leading-snug text-ink">

@@ -412,7 +412,8 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                 <span className="font-mono text-ai">crypto.randomUUID()</span> idempotency key.
               </p>
 
-              <div className="mt-6 grid gap-3 md:grid-cols-3">
+              <div className="mt-6 grid gap-3 md:grid-cols-3 relative">
+                <div className="hidden md:block absolute top-[60%] left-0 right-0 h-px bg-ship/50 z-20 pointer-events-none transform -translate-y-1/2 shadow-[0_0_8px_rgba(0,255,102,0.8)]" />
                 <ReelColumn
                   label="Source"
                   reel={reels[0]}
@@ -479,14 +480,15 @@ export function SlotMachineModal({ open, onClose }: SlotModalProps) {
                     type="button"
                     onClick={spin}
                     disabled={phase !== "ready"}
-                    className="rounded border-2 border-ship bg-ship px-5 py-2 font-mono text-xs font-bold uppercase tracking-[0.1em] text-surface shadow-ship transition enabled:hover:shadow-[0_0_26px_rgba(0,255,102,0.45)] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="group relative overflow-hidden rounded-lg border-b-4 border-[#006e27] bg-ship px-8 py-3 font-mono text-sm font-bold uppercase tracking-[0.15em] text-surface shadow-[0_0_12px_rgba(0,255,102,0.4)] transition-all enabled:hover:bg-[#6bff83] enabled:hover:shadow-[0_0_20px_rgba(0,255,102,0.6)] disabled:cursor-not-allowed disabled:opacity-40"
                     whileTap={
                       decorativeMotionDisabled || phase === "loading"
                         ? undefined
-                        : { scale: 0.97 }
+                        : { scale: 0.97, y: 2 }
                     }
                   >
-                    Spin
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
+                    <span className="relative z-10 flex items-center gap-2">Spin</span>
                   </motion.button>
                   <motion.button
                     type="button"
