@@ -16,13 +16,13 @@ todos:
     status: completed
   - id: phase2-assembly-radar-slot
     content: "Ship Assembly Line, Command Center (fuel + radar), Slot modal with loading/empty states; prefers-reduced-motion + in-app reduced-motion toggle"
-    status: pending
+    status: completed
   - id: github-app-allowlist
     content: "GitHub App on org: @octokit/auth-app installation token; server-only fetch for allowlisted repos; label quick-win issues"
-    status: pending
+    status: completed
   - id: llm-generateObject-ratelimit
     content: "Vercel AI SDK generateObject + Zod; Upstash 5 spins/min/user; 5s AbortController; persist promptVersionHash per invocation"
-    status: pending
+    status: completed
   - id: slot-orchestration-idempotency
     content: "Prefetch on modal open; Promise.allSettled for GitHub+LLM; per-reel failure UX; save spun task with client idempotency key (crypto.randomUUID)"
     status: pending
@@ -93,6 +93,30 @@ flowchart LR
 ```
 
 ## Progress log (maintained)
+
+**2026-05-14 — Slot LLM: generateObject + Upstash + audit log**
+
+- **Server-only:** `invokeSlotLlmIdeas` in `src/lib/llm-slot-spin.ts` — Vercel AI SDK `generateObject` with Zod (`slotIdeasSchema`: exactly three ideas × title / oneLiner / suggestedScope), `maxRetries: 0`, **5s** `AbortController` timeout.
+- **Rate limit:** `@upstash/ratelimit` sliding window **5 / 60s** keyed by `userId`. **Production** requires `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`; **development** skips limit with a one-time console warning if unset.
+- **Audit:** Every gated outcome writes `LlmInvocationLog` with `promptVersionHash` = SHA-256 of system prompt + `SLOT_LLM_SCHEMA_VERSION`, `model`, `ok`, `errorCode` (`rate_limited`, `aborted`, `schema_error`, `provider_error`, `ratelimit_unconfigured`), `durationMs`.
+- **Prefetch:** `prefetchSlotLlmIdeas` server action; slot modal runs it in parallel with GitHub prefetch + arm delay. Tech / Output reels map from the first two generated ideas when configured.
+
+## Revisit later
+
+- **GitHub App setup:** When you are ready, finish org app install and fill `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_INSTALLATION_ID`, and `GITHUB_APP_REPO_ALLOWLIST` (see `.env.example`). OAuth sign-in is separate; the App drives allowlisted issue fetch for the Source reel (`src/lib/github-app-issues.ts`).
+
+**2026-05-14 — GitHub App allowlist + quick-win fetch (Phase 3 start)**
+
+- **Server-only:** `octokit` + `@octokit/auth-app` installation auth; `fetchQuickWinGithubIssues` in `src/lib/github-app-issues.ts` (import `server-only`). Env: `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_INSTALLATION_ID`, `GITHUB_APP_REPO_ALLOWLIST` (comma `owner/repo`), optional `GITHUB_APP_ISSUE_LABEL` (default `quick-win`).
+- **Allowlist:** Parses and queries only listed repos; `Promise.allSettled` per repo with `partialErrors` aggregated. Pull requests filtered out; caps per repo / total to avoid huge payloads.
+- **Prefetch:** `prefetchGithubQuickWins` server action (`src/actions/github-quick-wins.ts`) requires sign-in before calling GitHub (anonymous users skip API). Slot modal waits for min arm delay **and** prefetch; on success, Source reel shows the first candidate title/repo ref; failures surface a short hint without leaking secrets.
+
+**2026-05-14 — Phase 2 views: assembly line, command center, slot modal**
+
+- **Assembly line:** Horizontal three-zone conveyor (`incoming` / `in_progress` / `shipped`) with semantic GitHub vs AI card chrome, optional GitHub links, per-column empty states, and conveyor stripe motion gated by the existing reduced-motion toggle + `prefers-reduced-motion` (Tailwind `animate-conveyor`).
+- **Command center:** Fuel meter = shipped ÷ active-week scoped tasks (0% when no week tasks); stretch bar vs `COHORT_WEEK_SHIP_TARGET` (`src/lib/momentum-constants.ts`). Radar places each cohort member by angle with radius from personal week shipped ÷ assigned week tasks (outer “idle” when no week assignments).
+- **Slot machine:** `SlotMachineModal` replaces the placeholder—three reels, prefetch skeleton with mock latency, spin reshuffle, `useLayoutEffect` to avoid open flicker, reduced-motion fast path.
+- **Data:** `getCohortDashboard` (`src/lib/cohort-dashboard.ts`) loads cohort tasks (active week + `weekId: null` backlog), members, and week fuel counts. Seed creates demo tasks when the DB has none (`prisma/seed.ts`).
 
 **2026-05-14 — Phase 1 foundation in repo; app smoke-tested**
 

@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, TaskSource, TaskStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -24,8 +24,9 @@ async function main() {
     where: { cohortId: cohort.id, isActive: true },
   });
 
-  if (!active) {
-    await prisma.week.create({
+  let week =
+    active ??
+    (await prisma.week.create({
       data: {
         cohortId: cohort.id,
         title: "Week 1 — Foundation",
@@ -34,6 +35,55 @@ async function main() {
         isActive: true,
         sortIndex: 0,
       },
+    }));
+
+  const demoCount = await prisma.task.count({ where: { cohortId: cohort.id } });
+  if (demoCount === 0) {
+    await prisma.task.createMany({
+      data: [
+        {
+          cohortId: cohort.id,
+          weekId: week.id,
+          title: "Wire slot prefetch + idempotent save",
+          description: "Promise.allSettled for GitHub + LLM; client UUID idempotency key.",
+          source: TaskSource.github,
+          status: TaskStatus.in_progress,
+          themeTag: "shipping",
+          githubOwner: "octokit",
+          githubRepo: "rest.js",
+          githubIssueNumber: 1,
+          githubHtmlUrl: "https://github.com/octokit/rest.js/issues/1",
+        },
+        {
+          cohortId: cohort.id,
+          weekId: week.id,
+          title: "Radar blip motion + reduced path",
+          description: "Keep radar legible on #0F1115; respect cohort non-competitive rule.",
+          source: TaskSource.ai,
+          status: TaskStatus.incoming,
+          themeTag: "ux",
+        },
+        {
+          cohortId: cohort.id,
+          weekId: week.id,
+          title: "Fuel gauge copy + stretch target",
+          description: "Document shipped/week ratio vs cohort stretch constant.",
+          source: TaskSource.ai,
+          status: TaskStatus.shipped,
+          themeTag: "docs",
+          shippedAt: new Date(),
+        },
+        {
+          cohortId: cohort.id,
+          weekId: null,
+          title: "Backlog: Discord ship embed",
+          description: "Queue-friendly webhook utility with rotation story.",
+          source: TaskSource.github,
+          status: TaskStatus.incoming,
+          themeTag: "integrations",
+          githubHtmlUrl: "https://github.com/vercel/next.js/issues/1",
+        },
+      ],
     });
   }
 

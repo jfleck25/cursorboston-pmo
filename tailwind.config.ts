@@ -45,6 +45,21 @@ const config: Config = {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
         mono: ["var(--font-jetbrains)", "ui-monospace", "monospace"],
       },
+      keyframes: {
+        conveyor: {
+          "0%": { backgroundPosition: "0 0" },
+          "100%": { backgroundPosition: "28px 0" },
+        },
+        "radar-sweep": {
+          "0%": { opacity: "0.2" },
+          "50%": { opacity: "0.45" },
+          "100%": { opacity: "0.2" },
+        },
+      },
+      animation: {
+        conveyor: "conveyor 0.85s linear infinite",
+        "radar-sweep": "radar-sweep 4.5s ease-in-out infinite",
+      },
       boxShadow: {
         ship: "0 0 20px rgba(0, 255, 102, 0.35)",
         focus: "0 0 16px rgba(0, 240, 255, 0.25)",

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useMotionPreference } from "@/components/providers/MotionPreferenceProvider";
-import { SlotModalPlaceholder } from "./SlotModalPlaceholder";
+import { SlotMachineModal } from "./SlotMachineModal";
 
 export function ShellClient() {
   const [open, setOpen] = useState(false);
@@ -42,7 +42,7 @@ export function ShellClient() {
         </motion.button>
       </div>
 
-      <SlotModalPlaceholder open={open} onClose={() => setOpen(false)} />
+      <SlotMachineModal open={open} onClose={() => setOpen(false)} />
     </>
   );
 }
